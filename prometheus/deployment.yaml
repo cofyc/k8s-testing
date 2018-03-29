@@ -1,0 +1,72 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    app: prometheus
+    component: k8s-testing
+  name: prometheus
+  namespace: kube-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+      component: k8s-testing
+  template:
+    metadata:
+      labels:
+        app: prometheus
+        component: k8s-testing
+    spec:
+      containers:
+      - name: prometheus
+        args:
+        - --config.file=/etc/prometheus/config/prometheus.yaml
+        - --storage.tsdb.path=/var/prometheus/data
+        - --storage.tsdb.retention=24h
+        - --web.enable-lifecycle
+        - --storage.tsdb.no-lockfile
+        - --web.external-url=http://prometheus.k8s.test
+        - --web.route-prefix=/
+        image: quay.io/prometheus/prometheus:v2.2.1
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 9090
+          name: web
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 6
+          httpGet:
+            path: /-/ready
+            port: web
+            scheme: HTTP
+          periodSeconds: 5
+          successThreshold: 1
+          timeoutSeconds: 3
+        livenessProbe:
+          failureThreshold: 10
+          httpGet:
+            path: /-/healthy
+            port: web
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          successThreshold: 1
+          timeoutSeconds: 3
+        volumeMounts:
+        - mountPath: /etc/prometheus/config
+          name: config
+          readOnly: true
+        - mountPath: /var/prometheus/data
+          name: data
+      volumes:
+      - name: data
+        emptyDir: {}
+      - name: config
+        configMap:
+          name: prometheus-config
+      nodeSelector:
+        kubernetes.io/hostname: poc-master1
+      tolerations:
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/master

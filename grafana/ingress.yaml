@@ -1,0 +1,16 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  labels:
+    app: grafana
+    component: k8s-testing
+  name: grafana
+  namespace: kube-system
+spec:
+  rules:
+  - host: grafana.k8s.test
+    http:
+      paths:
+      - backend:
+          serviceName: grafana
+          servicePort: 80

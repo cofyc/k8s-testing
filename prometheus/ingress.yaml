@@ -1,0 +1,17 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  labels:
+    app: prometheus
+    component: k8s-testing
+  name: prometheus
+  namespace: kube-system
+spec:
+  rules:
+  - host: prometheus.k8s.test
+    http:
+      paths:
+      - backend:
+          serviceName: prometheus
+          servicePort: 9090
+        path: /
