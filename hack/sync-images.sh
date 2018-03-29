@@ -22,6 +22,8 @@ images=(
     gcr.io/kubernetes-e2e-test-images/mounttest-amd64:1.0
     # prometheus
     quay.io/prometheus/prometheus:v2.2.1
+    # external storage
+    quay.io/external_storage/local-volume-provisioner:v2.0.0
 )
 
 function get-normalized-image() {
