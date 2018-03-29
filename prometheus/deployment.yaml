@@ -20,8 +20,13 @@ spec:
     spec:
       containers:
       - name: prometheus
+        #command:
+        #- /bin/sh
         args:
-        - --config.file=/etc/prometheus/config/prometheus.yaml
+        #- -c
+        #- "while true; do sleep 1; done"
+        #args:
+        - --config.file=/etc/prometheus/config/prometheus.yml
         - --storage.tsdb.path=/var/prometheus/data
         - --storage.tsdb.retention=24h
         - --web.enable-lifecycle
