@@ -24,6 +24,8 @@ spec:
           value: admin
         - name: GF_SECURITY_ADMIN_PASSWORD
           value: admin
+        - name: GF_AUTH_BASIC_ENABLED
+          value: 'true'
         image: grafana/grafana:4.6.3
         imagePullPolicy: IfNotPresent
         name: grafana
