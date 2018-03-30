@@ -16,7 +16,7 @@ case $action in
 esac
 
 test -d /mnt/disks || mkdir /mnt/disks
-for i in $(seq 1 100); do
+for i in $(seq 1 600); do
     vol=vol$i
     dir=/mnt/disks/$vol
     if [[ "$action" == "setup" ]]; then
