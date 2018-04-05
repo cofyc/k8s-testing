@@ -32,6 +32,7 @@ spec:
               readOnly: true
             - mountPath:  /mnt/disks
               name: disks
+              mountPropagation: HostToContainer
       volumes:
         - name: provisioner-config
           configMap:
