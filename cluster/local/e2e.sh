@@ -36,8 +36,7 @@ if $build; then
     make WHAT=test/e2e/e2e.test
 fi
 
-go run hack/e2e.go -- \
+go run hack/e2e.go -old 240h -- \
     --provider=local \
     --test \
-    --test_args="--ginkgo.focus=PersistentVolumes-local.*\[Volume\stype:\s(dir|tmpfs)\].*Set\sfsGroup\sfor\slocal\svolume --clean-start=true" \
-    --timeout=1h \
+    --test_args="--ginkgo.focus=PersistentVolumes-local.*\[Volume\stype:\s(dir|tmpfs)\].*Set\sfsGroup\sfor\slocal\svolume --clean-start=true"

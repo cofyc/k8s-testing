@@ -5,8 +5,9 @@ set -o nounset
 set -o pipefail
 
 build=false
+containerized=false
 
-while getopts "h?b" opt; do
+while getopts "h?bc" opt; do
     case "$opt" in
         h|\?)
             usage
@@ -14,6 +15,9 @@ while getopts "h?b" opt; do
             ;;
         b)
             build=true
+            ;;
+        c)
+            containerized=true
             ;;
         esac
 done
@@ -23,7 +27,11 @@ cd $KUBE_ROOT
 
 export LOG_LEVEL=5
 export ALLOW_PRIVILEGED=true
-export DOCKERIZE_KUBELET=y
+if $containerized; then
+    export DOCKERIZE_KUBELET=y
+else
+    export DOCKERIZE_KUBELET=
+fi
 export ENABLE_CLUSTER_DNS=true
 export DNS_SERVER_IP=10.0.0.10
 
@@ -45,5 +53,5 @@ if $build; then
     )
 fi
 
-sysctl -w fs.inotify.max_user_watches=1048576
+#sysctl -w fs.inotify.max_user_watches=1048576
 ./hack/local-up-cluster.sh -o ./_output/dockerized/bin/linux/amd64
