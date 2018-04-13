@@ -14,6 +14,7 @@ images=(
     gcr.io/google_containers/k8s-dns-sidecar-amd64:1.14.7
     gcr.io/google_containers/k8s-dns-kube-dns-amd64:1.14.7
     gcr.io/google_containers/k8s-dns-dnsmasq-nanny-amd64:1.14.7
+    gcr.io/google_containersk8s.gcr.io/kube-cross:v1.10.1-1
     # ingress
     gcr.io/google_containers/defaultbackend:1.0
     gcr.io/google_containers/nginx-ingress-controller:0.9.0-beta.15
@@ -47,17 +48,22 @@ else
     docker login reg.qiniu.com
 fi
 
+if [ $# -gt 0 ]; then
+	images=($@)
+fi
+
 (
 for img in ${images[*]}; do
+    logfile="/tmp/sync-images-$(get-normalized-image $1).log"
     (
-    echo "====== syncing $img" >&99
+    echo "====== syncing $img, log file: $logfile" >&99
     rurl=$img
     lurl=$(get-full-image $img)
     docker pull $rurl
     docker tag $rurl $lurl
     docker push $lurl
     echo "====== syncing $img done" >&99
-    ) 0>&- 1>&- &
+    ) 0>&- &>$logfile &
 done
 wait
 echo "done" >&99

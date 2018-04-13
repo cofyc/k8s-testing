@@ -1,0 +1,21 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: test-pod
+spec:
+  containers:
+  - name: test-pod
+    image: alpine:3.6
+    command:
+    - "/bin/sh"
+    args:
+    - "-c"
+    - "while true; do sleep 1; done"
+    volumeMounts:
+    - name: local
+      mountPath: "/mnt"
+  restartPolicy: "Never"
+  volumes:
+  - name: local
+    persistentVolumeClaim:
+      claimName: example-local-claim
