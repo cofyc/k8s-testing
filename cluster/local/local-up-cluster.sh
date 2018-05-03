@@ -32,8 +32,6 @@ if $containerized; then
 else
     export DOCKERIZE_KUBELET=
 fi
-export ENABLE_CLUSTER_DNS=true
-export DNS_SERVER_IP=10.0.0.10
 
 if $build; then
     (
@@ -53,5 +51,5 @@ if $build; then
     )
 fi
 
-#sysctl -w fs.inotify.max_user_watches=1048576
+export FEATURE_GATES="BlockVolume=true"
 ./hack/local-up-cluster.sh -o ./_output/dockerized/bin/linux/amd64

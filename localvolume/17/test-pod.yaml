@@ -10,14 +10,14 @@ spec:
     - "/bin/sh"
     args:
     - "-c"
-    - "trap 'exit' TERM; while true; do sleep 1; done"
+    - "while true; do sleep 1; done"
     volumeMounts:
     - name: local
       mountPath: "/mnt"
+      readOnly: false
   restartPolicy: "Never"
-  securityContext:
-    fsGroup: 1234
   volumes:
   - name: local
     persistentVolumeClaim:
       claimName: example-local-claim
+      readOnly: false

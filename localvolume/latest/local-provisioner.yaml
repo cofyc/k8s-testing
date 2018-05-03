@@ -18,7 +18,6 @@ spec:
       containers:
         - image: "quay.io/external_storage/local-volume-provisioner:latest"
           imagePullPolicy: IfNotPresent
-          #imagePullPolicy: "Always"
           name: provisioner 
           securityContext:
             privileged: true

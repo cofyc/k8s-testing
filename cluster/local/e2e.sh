@@ -27,16 +27,34 @@ cd $KUBE_ROOT
 
     # --test_args="--ginkgo.focus=PersistentVolumes-local" \
 
-    # --test_args="--ginkgo.focus=\[Volume\stype:\s+tmpfs\]\s+.*should\s+be\s+able\s+to\s+mount\s+volume\s+and\s+read\s+from\s+pod" \
-    # --test_args="--ginkgo.focus=PersistentVolumes-local.*should\s+fail\s+due\s+to\s+non-existent\s+path" \
-    # --test_args="--ginkgo.focus=PersistentVolumes-local.*should\s+set\s+fsGroup\s+for\s+local\s+volume" \
-    # --test_args="--ginkgo.focus=PersistentVolumes-local.*should\s+set\s+fsGroup\s+for\s+local\s+volume"
+    # 62102
+    # --test_args="--ginkgo.focus=PersistentVolumes-local.*\[Volume\stype:\s(tmpfs|linkdir|dir)\].*Set\sfsGroup\sfor\slocal\svolume --clean-start=true"
+    
+    #--test_args="--ginkgo.focus=PersistentVolumes-local.*non-existent\spath"
+    # --test_args="--ginkgo.focus=should\snot\sprovision\sa\svolume\sin\san\sunmanaged\sGCE\szone"
+    # --test_args="--ginkgo.focus=PersistentVolumes-local.*\[Volume\stype:\stmpfs\].*Set\sfsGroup\sfor\slocal\svolume --clean-start=true"
 
 if $build; then
     make WHAT=test/e2e/e2e.test
 fi
 
+    # --ginkgo-parallel=4 \
+    # --test_args="--ginkgo.focus=PersistentVolumes-local.*\[Volume\stype:\s(tmpfs|linkdir|dir)\].*Set\sfsGroup\sfor\slocal\svolume --clean-start=true"
+    # --test_args="--ginkgo.focus=PersistentVolumes-local.*\[Volume\stype:\s(dir-link-bindmounted)\].*Set\sfsGroup\sfor\slocal\svolume.*should\snot\sset\sdifferent\sfsGroups --clean-start=true"
+    # --ginkgo-parallel=4 
+    # --test_args="--ginkgo.focus=PersistentVolumes-local.*\[Volume\stype:\s(dir|dir-link|dir-bindmounted|dir-link-bindmounted)\] --clean-start=true"
+# export GINKGO_PARALLEL=4
+# export GINKGO_PARALLEL_NODES=4
+    # --test_args="--ginkgo.focus=PersistentVolumes-local.*\[Volume\stype:\s(dir|dir-link|dir-bindmounted|dir-link-bindmounted|tmpfs|block)\] --clean-start=true"
+    # --test_args="--ginkgo.focus=PersistentVolumes-local.*\[Volume\stype:\s(blockfs)\] --clean-start=true"
+    # --test_args="--ginkgo.focus=PersistentVolumes-local.*\[Volume\stype:\s(blockfs)\].*Set\sfsGroup\sfor\slocal\svolume.*should\snot\sset\sdifferent\sfsGroups --clean-start=true"
 go run hack/e2e.go -old 240h -- \
     --provider=local \
     --test \
-    --test_args="--ginkgo.focus=PersistentVolumes-local.*\[Volume\stype:\s(dir|tmpfs)\].*Set\sfsGroup\sfor\slocal\svolume --clean-start=true"
+    --test_args="--ginkgo.focus=PersistentVolumes-local.*\[Volume\stype:\s(dir|dir-link|dir-bindmounted|dir-link-bindmounted|tmpfs|block)\] --clean-start=true"
+
+# export GINKGO_PARALLEL=4
+# export KUBERNETES_PROVIDER="local" 
+    # ./hack/ginkgo-e2e.sh \
+        # '--ginkgo.focus=PersistentVolumes-local.*\[Volume\stype:\s(tmpfs|block)\]' \
+        # --clean-start=true

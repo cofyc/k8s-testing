@@ -1,7 +1,7 @@
 kind: Pod
 apiVersion: v1
 metadata:
-  name: test-pod
+  name: test-pod-2
 spec:
   containers:
   - name: test-pod
@@ -16,7 +16,7 @@ spec:
       mountPath: "/mnt"
   restartPolicy: "Never"
   securityContext:
-    fsGroup: 1234
+    fsGroup: 4321
   volumes:
   - name: local
     persistentVolumeClaim:

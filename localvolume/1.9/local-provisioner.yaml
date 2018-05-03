@@ -16,8 +16,8 @@ spec:
     spec:
       serviceAccountName: local-storage-admin
       containers:
-        - image: "quay.io/external_storage/local-volume-provisioner:v2.0.0"
-          imagePullPolicy: "Always"
+        - image: quay.io/external_storage/local-volume-provisioner:latest
+          imagePullPolicy: IfNotPresent
           name: provisioner 
           securityContext:
             privileged: true
