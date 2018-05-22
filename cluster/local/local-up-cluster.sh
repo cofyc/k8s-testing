@@ -17,13 +17,14 @@ while getopts "h?bc" opt; do
             build=true
             ;;
         c)
-            containerized=true
-            ;;
+            containerized=true ;;
         esac
 done
 
 KUBE_ROOT=$GOPATH/src/k8s.io/kubernetes
 cd $KUBE_ROOT
+VERSION=$(./hack/print-workspace-status.sh | awk '/gitVersion/ {print $2}')
+echo "Kubernetes version: $VERSION"
 
 export LOG_LEVEL=5
 export ALLOW_PRIVILEGED=true
@@ -51,5 +52,5 @@ if $build; then
     )
 fi
 
-export FEATURE_GATES="BlockVolume=true"
+# export FEATURE_GATES="BlockVolume=true"
 ./hack/local-up-cluster.sh -o ./_output/dockerized/bin/linux/amd64

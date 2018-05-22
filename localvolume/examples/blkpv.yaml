@@ -8,7 +8,7 @@ spec:
   capacity:
     storage: 1Gi
   local:
-    path: /mnt/vol1/foo
+    path: /mnt/disks/blkvol1
   nodeAffinity:
     required:
       nodeSelectorTerms:
@@ -18,4 +18,5 @@ spec:
           values:
           - 127.0.0.1
   persistentVolumeReclaimPolicy: Delete
+  volumeMode: Block
   storageClassName: local-storage

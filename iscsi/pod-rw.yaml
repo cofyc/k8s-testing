@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: iscsipd
+spec:
+  containers:
+  - name: iscsipd-rw
+    image: alpine
+    command:
+    - "/bin/sh"
+    args:
+    - "-c"
+    - "while true; do sleep 1; done"
+    volumeMounts:
+    - mountPath: "/mnt/iscsipd"
+      name: iscsipd-rw
+  volumes:
+  - name: iscsipd-rw
+    iscsi:
+      targetPortal: 127.0.0.1:3260
+      # portals: ['127.0.0.1:3260']
+      iqn: iqn.2016-04.world.srv:storage.target00
+      lun: 0
+      fsType: ext4
+      readOnly: false
+      chapAuthDiscovery: false
+      chapAuthSession: true
+      secretRef: 
+         name: chap-secret

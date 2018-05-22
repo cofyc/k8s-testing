@@ -1,20 +1,19 @@
 kind: Pod
 apiVersion: v1
 metadata:
-  name: test-pod
+  name: test-pod-2
 spec:
   containers:
-  - name: test-pod
+  - name: test-pod-2
     image: alpine:3.6
     command:
     - "/bin/sh"
     args:
     - "-c"
-    # See https://superuser.com/a/1299463/290489.
     - "trap 'exit' TERM; while true; do sleep 1; done"
-    volumeMounts:
+    volumeDevices:
     - name: local
-      mountPath: "/mnt"
+      devicePath: "/dev/blk1"
   restartPolicy: "Never"
   securityContext:
     fsGroup: 1234
