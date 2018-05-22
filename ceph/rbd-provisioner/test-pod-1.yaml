@@ -1,0 +1,23 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: test-pod-1
+spec:
+  containers:
+  - name: test-pod-1
+    image: gcr.io/google_containers/busybox:1.24
+    command:
+    - "/bin/sh"
+    args:
+    - "-c"
+    - "sleep 9999"
+    volumeMounts:
+    - name: pvc
+      mountPath: "/mnt"
+      readOnly: false
+  restartPolicy: "Never"
+  volumes:
+  - name: pvc
+    persistentVolumeClaim:
+      claimName: claim1
+      readOnly: false

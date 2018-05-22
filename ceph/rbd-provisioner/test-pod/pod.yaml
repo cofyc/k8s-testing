@@ -1,0 +1,35 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: test-pod-1
+  namespace: default
+spec:
+  containers:
+  - name: test-pod
+    image: gcr.io/google_containers/busybox:1.24
+    command:
+    - "/bin/sh"
+    args:
+    - "-c"
+    - "while true; do sleep 1; done"
+    # - "touch /mnt/SUCCESS"
+    volumeMounts:
+    - name: rbd
+      mountPath: "/mnt"
+      readOnly: false
+  restartPolicy: "Never"
+  volumes:
+  - name: rbd
+    persistentVolumeClaim:
+      claimName: claim1
+      readOnly: false
+  # - name: rbd
+    # rbd:
+      # monitors:
+        # - 192.168.2.128:6789
+      # pool: kube
+      # image: kubernetes-dynamic-pvc-3413632d-8f3a-11e7-9ca0-000c291fbe71
+      # user: kube
+      # secretRef:
+        # name: ceph-secret
+

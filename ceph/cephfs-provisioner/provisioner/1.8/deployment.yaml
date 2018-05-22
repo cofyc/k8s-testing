@@ -1,0 +1,31 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: cephfs-provisioner
+  namespace: cephfs
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: cephfs-provisioner
+    spec:
+      containers:
+      - name: cephfs-provisioner
+        image: index-dev.qiniu.io/kelibrary/cephfs-provisioner:latest
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: PROVISIONER_NAME
+          value: ceph.com/cephfs
+        - name: PROVISIONER_SECRET_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        command:
+        - "/usr/local/bin/cephfs-provisioner"
+        args:
+        - "-id=cephfs-provisioner-1"
+        - "-v=4"
+      serviceAccount: cephfs-provisioner

@@ -1,0 +1,14 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: test-pod-novol-1
+spec:
+  containers:
+  - name: test-pod
+    image: gcr.io/google_containers/busybox:1.24
+    command:
+    - "/bin/sh"
+    args:
+    - "-c"
+    - "sleep 9999"
+  restartPolicy: "Never"
