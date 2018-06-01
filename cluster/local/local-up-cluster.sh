@@ -53,4 +53,6 @@ if $build; then
 fi
 
 # export FEATURE_GATES="BlockVolume=true"
+# export FEATURE_GATES="PersistentLocalVolumes=true,VolumeScheduling=true,MountPropagation=true,BlockVolume=true"
+export KEEP_TERMINATED_POD_VOLUMES=false
 ./hack/local-up-cluster.sh -o ./_output/dockerized/bin/linux/amd64

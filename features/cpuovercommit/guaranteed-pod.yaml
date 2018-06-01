@@ -1,0 +1,41 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: guaranteed-pod
+spec:
+  containers:
+  - name: test-pod
+    image: alpine:3.6
+    command:
+    - "/bin/sh"
+    args:
+    - "-c"
+    - "trap 'exit' TERM; while true; do sleep 1; done"
+    resources:
+      requests:
+        cpu: 1
+        memory: "1024Mi"
+      limits:
+        cpu: 1
+        memory: "1024Mi"
+---
+kind: Pod
+apiVersion: v1
+metadata:
+  name: guaranteed-pod-1
+spec:
+  containers:
+  - name: test-pod
+    image: alpine:3.6
+    command:
+    - "/bin/sh"
+    args:
+    - "-c"
+    - "trap 'exit' TERM; while true; do sleep 1; done"
+    resources:
+      requests:
+        cpu: 0.740
+        memory: "1024Mi"
+      limits:
+        cpu: 0.740
+        memory: "1024Mi"

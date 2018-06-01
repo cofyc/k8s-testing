@@ -1,0 +1,29 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: besteffort-pod
+spec:
+  containers:
+  - name: besteffort-pod
+    image: alpine:3.6
+    command:
+    - "/bin/sh"
+    args:
+    - "-c"
+    # - "trap 'exit' TERM; while true; do sleep 1; done"
+    - "while true; do sleep 1; done"
+---
+kind: Pod
+apiVersion: v1
+metadata:
+  name: besteffort-pod-1
+spec:
+  containers:
+  - name: besteffort-pod
+    image: alpine:3.6
+    command:
+    - "/bin/sh"
+    args:
+    - "-c"
+    # - "trap 'exit' TERM; while true; do sleep 1; done"
+    - "while true; do sleep 1; done"

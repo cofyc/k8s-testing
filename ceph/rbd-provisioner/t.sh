@@ -1,3 +1,0 @@
-#!/bin/bash
-
-/go/src/k8s.io/kubernetes/_output/local/bin/linux/amd64/hyperkube kubelet --v=3 --vmodule= --chaos-chance=0.0 --container-runtime=docker --rkt-path= --rkt-stage1-image= --hostname-override=127.0.0.1 --cloud-provider= --cloud-config= --address=127.0.0.1 --kubeconfig /var/run/kubernetes/kubelet.kubeconfig --feature-gates=AllAlpha=false --cpu-cfs-quota=true --enable-controller-attach-detach=true --cgroups-per-qos=true --cgroup-driver=cgroupfs --keep-terminated-pod-volumes=true --eviction-hard='memory.available<100Mi,nodefs.available<10%,nodefs.inodesFree<5%' --eviction-soft= --eviction-pressure-transition-period=1m --pod-manifest-path=/var/run/kubernetes/static-pods --fail-swap-on=false --cluster-dns=10.0.0.10 --cluster-domain=cluster.local --port=10250

@@ -33,6 +33,7 @@ if [[ "$UID" != "0" ]]; then
 fi
 
     # --test_args="--ginkgo.focus=PersistentVolumes-local.*\[Volume\stype:\s(dir|dir-link|dir-bindmounted|dir-link-bindmounted|tmpfs|block|blockfs)\] --clean-start=true" \
+    # --test_args="--ginkgo.focus=PersistentVolumes-local.*\[Volume\stype:\s(dir|dir-link|dir-bindmounted|dir-link-bindmounted|tmpfs|block|blockfs)\] --clean-start=true --minStartupPods=1" \
 
     # test all PersistentVolumes-local
     # --test_args="--ginkgo.focus=PersistentVolumes-local.* --clean-start=true"
@@ -44,9 +45,14 @@ fi
 
     #--test_args="--ginkgo.focus=PersistentVolumes-local.*\[Volume\stype:\s(dir-bindmounted)\].*should\sset\sdifferent\sfsGroup\sfor\ssecond\spod.* --clean-start=true" \
 
-#export GINKGO_PARALLEL=y
+# export GINKGO_PARALLEL=y
+    # --test_args="--ginkgo.focus=PersistentVolumes-local.*\[Volume\stype:\s(block)\] --clean-start=true --minStartupPods=1" \
+    # --test_args="--ginkgo.focus=PersistentVolumes-local.*\[Volume\stype:\s(.*)\].*should\sset\sdifferent\sfsGroup\sfor\s+second\spod\sif\sfirst\spod\sis\sdeleted.* --clean-start=true --minStartupPods=1" \
+    # --test_args="--ginkgo.focus=PersistentVolumes-local.*\[Volume\stype:\s(tmpfs|blockfs)\].*should\s+not\s+set\s+different\s+fsGroups\sfor\stwo.* --clean-start=true --minStartupPods=1" \
+    #--test_args="--ginkgo.skip=.*Feature:BlockVolume.* --ginkgo.focus=PersistentVolumes-local.*\[Volume\stype:\s(dir|dir-link|dir-bindmounted|dir-link-bindmounted|tmpfs|block|blockfs)\] --clean-start=true --minStartupPods=1" \
 #export GINKGO_PARALLEL_NODES=6
+
 go run hack/e2e.go -old 240h -- \
     --provider=local \
-    --test_args="--ginkgo.focus=PersistentVolumes-local.*\[Volume\stype:\s(dir|dir-link|dir-bindmounted|dir-link-bindmounted|tmpfs|block|blockfs)\] --clean-start=true" \
+    --test_args='--ginkgo.focus=\[sig\-storage\]\sPersistentVolumes\-local\s\s\[Volume\stype\:\sdir\-link\]\sSet\sfsGroup\sfor\slocal\svolume\sshould\sset\sdifferent\sfsGroup\sfor\ssecond\spod\sif\sfirst\spod\sis\sdeleted$ --clean-start=true --minStartupPods=1' \
     --test

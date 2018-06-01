@@ -1,0 +1,37 @@
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  labels:
+    app: node-exporter
+    component: k8s-testing
+  name: node-exporter
+  namespace: kube-system
+spec:
+  template:
+    metadata:
+      labels:
+        app: node-exporter
+        component: k8s-testing
+    spec:
+      containers:
+      - name: node-exporter
+        args:
+        - --path.procfs=/rootfs/proc
+        - --path.sysfs=/rootfs/sys
+        - '--collector.diskstats.ignored-devices=^(ram|loop|fd|(h|s|v|xv)d[a-z]|nvmed+nd+p)d+$'
+        - '--collector.filesystem.ignored-mount-points=^/(sys|proc|dev|run)($|/)'
+        - '--collector.netdev.ignored-devices=^lo$'
+        image: quay.io/prometheus/node-exporter:v0.15.2
+        imagePullPolicy: IfNotPresent
+        volumeMounts:
+        - name: root
+          mountPath: /rootfs
+          readOnly:  true
+          mountPropagation: HostToContainer
+      volumes:
+      - name: root
+        hostPath:
+          path: /
+      tolerations:
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/master

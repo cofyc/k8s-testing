@@ -1,0 +1,33 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: burstable-pod
+spec:
+  containers:
+  - name: burstable-pod
+    image: alpine:3.6
+    command:
+    - "/bin/sh"
+    args:
+    - "-c"
+    - "trap 'exit' TERM; while true; do sleep 1; done"
+    resources:
+      limits:
+        cpu: 10
+---
+kind: Pod
+apiVersion: v1
+metadata:
+  name: burstable-pod-1
+spec:
+  containers:
+  - name: burstable-pod
+    image: alpine:3.6
+    command:
+    - "/bin/sh"
+    args:
+    - "-c"
+    - "trap 'exit' TERM; while true; do sleep 1; done"
+    resources:
+      limits:
+        cpu: 0.01

@@ -1,0 +1,62 @@
+diff --git a/pkg/kubelet/status/status_manager.go b/pkg/kubelet/status/status_manager.go
+index 93eef28..ac687a2 100644
+--- a/pkg/kubelet/status/status_manager.go
++++ b/pkg/kubelet/status/status_manager.go
+@@ -416,10 +416,25 @@ func (m *manager) RemoveOrphanedStatuses(podUIDs map[types.UID]bool) {
+ 	}
+ }
+ 
++// getAllPodUIDs returns all pod UIDs in podManager.
++func (m *manager) getAllPodUIDs() map[types.UID]bool {
++	pods, mirrorPods := m.podManager.GetPodsAndMirrorPods()
++	podUIDs := make(map[types.UID]bool)
++	for _, pod := range pods {
++		podUIDs[pod.UID] = true
++	}
++	for _, pod := range mirrorPods {
++		podUIDs[pod.UID] = true
++	}
++	return podUIDs
++}
++
+ // syncBatch syncs pods statuses with the apiserver.
+ func (m *manager) syncBatch() {
+ 	var updatedStatuses []podStatusSyncRequest
++	var deletedStatuses []types.UID
+ 	podToMirror, mirrorToPod := m.podManager.GetUIDTranslations()
++	allPodUIDs := m.getAllPodUIDs()
+ 	func() { // Critical section
+ 		m.podStatusesLock.RLock()
+ 		defer m.podStatusesLock.RUnlock()
+@@ -442,7 +457,10 @@ func (m *manager) syncBatch() {
+ 				}
+ 				syncedUID = mirrorUID
+ 			}
+-			if m.needsUpdate(types.UID(syncedUID), status) {
++			_, podExists := allPodUIDs[types.UID(syncedUID)]
++			if !podExists {
++				deletedStatuses = append(deletedStatuses, types.UID(syncedUID))
++			} else if m.needsUpdate(types.UID(syncedUID), status) {
+ 				updatedStatuses = append(updatedStatuses, podStatusSyncRequest{uid, status})
+ 			} else if m.needsReconcile(uid, status.status) {
+ 				// Delete the apiStatusVersions here to force an update on the pod status
+@@ -455,6 +473,11 @@ func (m *manager) syncBatch() {
+ 		}
+ 	}()
+ 
++	for _, uid := range deletedStatuses {
++		glog.V(3).Infof("Pod %q does not exist in pod manager, delete its status", uid)
++		m.deletePodStatus(uid)
++	}
++
+ 	for _, update := range updatedStatuses {
+ 		glog.V(5).Infof("Status Manager: syncPod in syncbatch. pod UID: %q", update.podUID)
+ 		m.syncPod(update.podUID, update.status)
+@@ -512,7 +535,6 @@ func (m *manager) syncPod(uid types.UID, status versionedPodStatus) {
+ 			return
+ 		}
+ 		glog.V(3).Infof("Pod %q fully terminated and removed from etcd", format.Pod(pod))
+-		m.deletePodStatus(uid)
+ 	}
+ }
+ 

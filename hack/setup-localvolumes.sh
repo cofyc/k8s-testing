@@ -48,6 +48,6 @@ for i in $(seq 1 3); do
             rm $blkfile
         fi
         test -d $blkvol && umount $blkvol
-        test -d $blkvol && rmblkvol $blkvol
+        test -d $blkvol && rmdir $blkvol
     fi
 done

@@ -1,0 +1,22 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: test-pod
+spec:
+  containers:
+  - name: test-container
+    image: alpine:3.6
+    command:
+    - "/bin/sh"
+    args:
+    - "-c"
+    - "trap 'exit' TERM; while true; do sleep 1; done"
+    # - "while true; do sleep 1; done"
+    volumeMounts:
+      - mountPath: /mnt/disks
+        name: test-volume
+        mountPropagation: "HostToContainer"
+  volumes:
+    - name: test-volume
+      hostPath:
+        path: /mnt/disks
