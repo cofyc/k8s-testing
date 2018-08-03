@@ -40,7 +40,7 @@ if $build; then
         source "${KUBE_ROOT}/build/common.sh"
         kube::build::verify_prereqs
         kube::build::build_image
-        kube::build::run_build_command make WHAT=cmd/hyperkube
+        kube::build::run_build_command make WHAT="cmd/hyperkube cmd/kubectl"
         kube::build::copy_output
 
         # build image if we are going to run kubelet in container
@@ -54,5 +54,6 @@ fi
 
 # export FEATURE_GATES="BlockVolume=true"
 # export FEATURE_GATES="PersistentLocalVolumes=true,VolumeScheduling=true,MountPropagation=true,BlockVolume=true"
+# export FEATURE_GATES="VolumeScheduling=true,EnableEquivalenceClassCache=true"
 export KEEP_TERMINATED_POD_VOLUMES=false
 ./hack/local-up-cluster.sh -o ./_output/dockerized/bin/linux/amd64

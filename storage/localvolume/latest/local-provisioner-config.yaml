@@ -4,6 +4,7 @@ metadata:
   name: local-provisioner-config 
   namespace: default 
 data:
+  useJobForCleaning: "yes"
   storageClassMap: |-
     local-storage:
       hostDir: /mnt/disks

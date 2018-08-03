@@ -24,7 +24,8 @@ cd $KUBE_ROOT
 if $build; then
     # -E is used to preserve environments
     # env "PATH=$PATH" is used to preserve PATH, see https://unix.stackexchange.com/a/83194/206361.
-    sudo -E env "PATH=$PATH" make WHAT=test/e2e/e2e.test
+    #sudo -E env "PATH=$PATH" make WHAT=test/e2e/e2e.test
+    make WHAT=test/e2e/e2e.test
 fi
 
 if [[ "$UID" != "0" ]]; then
@@ -54,5 +55,5 @@ fi
 
 go run hack/e2e.go -old 240h -- \
     --provider=local \
-    --test_args='--ginkgo.focus=\[sig\-storage\]\sPersistentVolumes\-local\s\s\[Volume\stype\:\sdir\-link\]\sSet\sfsGroup\sfor\slocal\svolume\sshould\sset\sdifferent\sfsGroup\sfor\ssecond\spod\sif\sfirst\spod\sis\sdeleted$ --clean-start=true --minStartupPods=1' \
+    --test_args="--ginkgo.focus=PersistentVolumes-local.*StatefulSet\swith\spod\saffinity.* --clean-start=true --minStartupPods=1" \
     --test

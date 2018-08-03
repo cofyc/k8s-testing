@@ -1,7 +1,7 @@
 kind: Pod
 apiVersion: v1
 metadata:
-  name: test-pod
+  name: issue56163-pod
 spec:
   containers:
   - name: test-pod
@@ -10,15 +10,11 @@ spec:
     - "/bin/sh"
     args:
     - "-c"
-    # See https://superuser.com/a/1299463/290489.
-    - "trap 'exit' TERM; while true; do touch /mnt/testfile; done"
+    - "trap 'exit' TERM; while true; do sleep 1; done"
     volumeMounts:
     - name: local
       mountPath: "/mnt"
-  restartPolicy: "Never"
-  securityContext:
-    fsGroup: 1234
   volumes:
   - name: local
     persistentVolumeClaim:
-      claimName: example-local-claim
+      claimName: issue56163-pvc
