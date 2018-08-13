@@ -1,0 +1,140 @@
+diff --git a/pkg/controller/volume/persistentvolume/pv_controller.go b/pkg/controller/volume/persistentvolume/pv_controller.go
+index 7de03ad..945819a 100644
+--- a/pkg/controller/volume/persistentvolume/pv_controller.go
++++ b/pkg/controller/volume/persistentvolume/pv_controller.go
+@@ -121,10 +121,16 @@ const annBindCompleted = "pv.kubernetes.io/bind-completed"
+ 
+ // annBoundByController annotation applies to PVs and PVCs.  It indicates that
+ // the binding (PV->PVC or PVC->PV) was installed by the controller.  The
+-// absence of this annotation means the binding was done by the user (i.e.
++// absence of this annotation means the binding was done by the scheduler or user (i.e.
+ // pre-bound). Value of this annotation does not matter.
+ const annBoundByController = "pv.kubernetes.io/bound-by-controller"
+ 
++// annBoundByScheduler annotation applies to PVs.  It indicates that
++// the PV was pre-bound by the scheduler.  The absence of this annotation means
++// the binding was done by the controller or the user (i.e. pre-bound). Value
++// of this annotation does not matter.
++const annBoundByScheduler = "pv.kubernetes.io/bound-by-scheduler"
++
+ // This annotation is added to a PV that has been dynamically provisioned by
+ // Kubernetes. Its value is name of volume plugin that created the volume.
+ // It serves both user (to show where a PV comes from) and Kubernetes (to
+@@ -539,11 +545,26 @@ func (ctrl *PersistentVolumeController) syncVolume(volume *v1.PersistentVolume)
+ 		}
+ 		glog.V(4).Infof("synchronizing PersistentVolume[%s]: volume is bound to claim %s", volume.Name, claimrefToClaimKey(volume.Spec.ClaimRef))
+ 		// Get the PVC by _name_
+-		var claim *v1.PersistentVolumeClaim
+-		claimName := claimrefToClaimKey(volume.Spec.ClaimRef)
+-		obj, found, err := ctrl.claims.GetByKey(claimName)
+-		if err != nil {
+-			return err
++		var (
++			claim *v1.PersistentVolumeClaim
++			obj   interface{}
++			found bool
++			err   error
++		)
++		if !metav1.HasAnnotation(volume.ObjectMeta, annBoundByScheduler) {
++			claimName := claimrefToClaimKey(volume.Spec.ClaimRef)
++			obj, found, err = ctrl.claims.GetByKey(claimName)
++			if err != nil {
++				return err
++			}
++		} else {
++			// We need to get PVC from apiserver if PV is bound by scheduler,
++			// because bound PVC may not be synced in PV controllet yet.
++			obj, err = ctrl.kubeClient.CoreV1().PersistentVolumeClaims(volume.Spec.ClaimRef.Namespace).Get(volume.Spec.ClaimRef.Name, metav1.GetOptions{})
++			if err != nil && !apierrs.IsNotFound(err) {
++				return err
++			}
++			found = !apierrs.IsNotFound(err)
+ 		}
+ 		if !found {
+ 			glog.V(4).Infof("synchronizing PersistentVolume[%s]: claim %s not found", volume.Name, claimrefToClaimKey(volume.Spec.ClaimRef))
+@@ -600,7 +621,7 @@ func (ctrl *PersistentVolumeController) syncVolume(volume *v1.PersistentVolume)
+ 				return nil
+ 			}
+ 
+-			if metav1.HasAnnotation(volume.ObjectMeta, annBoundByController) {
++			if metav1.HasAnnotation(volume.ObjectMeta, annBoundByController) || metav1.HasAnnotation(volume.ObjectMeta, annBoundByScheduler) {
+ 				// The binding is not completed; let PVC sync handle it
+ 				glog.V(4).Infof("synchronizing PersistentVolume[%s]: volume not bound yet, waiting for syncClaim to fix it", volume.Name)
+ 			} else {
+@@ -651,11 +672,11 @@ func (ctrl *PersistentVolumeController) syncVolume(volume *v1.PersistentVolume)
+ 			} else {
+ 				// Volume is bound to a claim, but the claim is bound elsewhere
+ 				// and it's not dynamically provisioned.
+-				if metav1.HasAnnotation(volume.ObjectMeta, annBoundByController) {
+-					// This is part of the normal operation of the controller; the
++				if metav1.HasAnnotation(volume.ObjectMeta, annBoundByController) || metav1.HasAnnotation(volume.ObjectMeta, annBoundByScheduler) {
++					// This is part of the normal operation of the controller or scheduler; the
+ 					// controller tried to use this volume for a claim but the claim
+ 					// was fulfilled by another volume. We did this; fix it.
+-					glog.V(4).Infof("synchronizing PersistentVolume[%s]: volume is bound by controller to a claim that is bound to another volume, unbinding", volume.Name)
++					glog.V(4).Infof("synchronizing PersistentVolume[%s]: volume is bound by controller or scheduler to a claim that is bound to another volume, unbinding", volume.Name)
+ 					if err = ctrl.unbindVolume(volume); err != nil {
+ 						return err
+ 					}
+@@ -830,7 +851,7 @@ func (ctrl *PersistentVolumeController) updateVolumePhaseWithEvent(volume *v1.Pe
+ func (ctrl *PersistentVolumeController) bindVolumeToClaim(volume *v1.PersistentVolume, claim *v1.PersistentVolumeClaim) (*v1.PersistentVolume, error) {
+ 	glog.V(4).Infof("updating PersistentVolume[%s]: binding to %q", volume.Name, claimToClaimKey(claim))
+ 
+-	volumeClone, dirty, err := ctrl.getBindVolumeToClaim(volume, claim)
++	volumeClone, dirty, err := ctrl.getBindVolumeToClaim(volume, claim, false)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -865,7 +886,7 @@ func (ctrl *PersistentVolumeController) updateBindVolumeToClaim(volumeClone *v1.
+ }
+ 
+ // Get new PV object only, no API or cache update
+-func (ctrl *PersistentVolumeController) getBindVolumeToClaim(volume *v1.PersistentVolume, claim *v1.PersistentVolumeClaim) (*v1.PersistentVolume, bool, error) {
++func (ctrl *PersistentVolumeController) getBindVolumeToClaim(volume *v1.PersistentVolume, claim *v1.PersistentVolumeClaim, byScheduler bool) (*v1.PersistentVolume, bool, error) {
+ 	dirty := false
+ 
+ 	// Check if the volume was already bound (either by user or by controller)
+@@ -892,9 +913,13 @@ func (ctrl *PersistentVolumeController) getBindVolumeToClaim(volume *v1.Persiste
+ 		dirty = true
+ 	}
+ 
+-	// Set annBoundByController if it is not set yet
+-	if shouldSetBoundByController && !metav1.HasAnnotation(volumeClone.ObjectMeta, annBoundByController) {
+-		metav1.SetMetaDataAnnotation(&volumeClone.ObjectMeta, annBoundByController, "yes")
++	// Set annBoundByController or annBoundByScheduler if it is not set yet
++	annBoundBy := annBoundByController
++	if byScheduler {
++		annBoundBy = annBoundByScheduler
++	}
++	if shouldSetBoundByController && !metav1.HasAnnotation(volumeClone.ObjectMeta, annBoundBy) {
++		metav1.SetMetaDataAnnotation(&volumeClone.ObjectMeta, annBoundBy, "yes")
+ 		dirty = true
+ 	}
+ 
+@@ -1010,10 +1035,11 @@ func (ctrl *PersistentVolumeController) unbindVolume(volume *v1.PersistentVolume
+ 	// Save the PV only when any modification is necessary.
+ 	volumeClone := volume.DeepCopy()
+ 
+-	if metav1.HasAnnotation(volume.ObjectMeta, annBoundByController) {
+-		// The volume was bound by the controller.
++	if metav1.HasAnnotation(volume.ObjectMeta, annBoundByController) || metav1.HasAnnotation(volume.ObjectMeta, annBoundByScheduler) {
++		// The volume was bound by the controller or scheduler.
+ 		volumeClone.Spec.ClaimRef = nil
+ 		delete(volumeClone.Annotations, annBoundByController)
++		delete(volumeClone.Annotations, annBoundByScheduler)
+ 		if len(volumeClone.Annotations) == 0 {
+ 			// No annotations look better than empty annotation map (and it's easier
+ 			// to test).
+diff --git a/pkg/controller/volume/persistentvolume/scheduler_binder.go b/pkg/controller/volume/persistentvolume/scheduler_binder.go
+index 12a851c..5add03d 100644
+--- a/pkg/controller/volume/persistentvolume/scheduler_binder.go
++++ b/pkg/controller/volume/persistentvolume/scheduler_binder.go
+@@ -204,7 +204,7 @@ func (b *volumeBinder) AssumePodVolumes(assumedPod *v1.Pod, nodeName string) (al
+ 	newBindings := []*bindingInfo{}
+ 
+ 	for _, binding := range claimsToBind {
+-		newPV, dirty, err := b.ctrl.getBindVolumeToClaim(binding.pv, binding.pvc)
++		newPV, dirty, err := b.ctrl.getBindVolumeToClaim(binding.pv, binding.pvc, true)
+ 		glog.V(5).Infof("AssumePodVolumes: getBindVolumeToClaim for pod %q, PV %q, PVC %q.  newPV %p, dirty %v, err: %v",
+ 			podName,
+ 			binding.pv.Name,

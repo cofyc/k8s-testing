@@ -12,4 +12,4 @@ cd $KUBE_ROOT
 
 export KUBE_TEST_ARGS="-run '^(TestVolumeBindingRescheduling)'"
 export KUBE_TEST_VMODULE="scheduler*=5,pv*=5"
-make test-integration WHAT=./test/integration/scheduler GOFLAGS="-v" 
+make test-integration WHAT=./test/integration/scheduler GOFLAGS="-v"

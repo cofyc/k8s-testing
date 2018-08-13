@@ -26,8 +26,6 @@ cd $KUBE_ROOT
 VERSION=$(./hack/print-workspace-status.sh | awk '/gitVersion/ {print $2}')
 echo "Kubernetes version: $VERSION"
 
-export LOG_LEVEL=5
-export ALLOW_PRIVILEGED=true
 if $containerized; then
     export DOCKERIZE_KUBELET=y
 else
@@ -52,8 +50,10 @@ if $build; then
     )
 fi
 
+export LOG_LEVEL=5
+export ALLOW_PRIVILEGED=
 # export FEATURE_GATES="BlockVolume=true"
-# export FEATURE_GATES="PersistentLocalVolumes=true,VolumeScheduling=true,MountPropagation=true,BlockVolume=true"
+export FEATURE_GATES="PersistentLocalVolumes=true,VolumeScheduling=true,MountPropagation=true,BlockVolume=true"
 # export FEATURE_GATES="VolumeScheduling=true,EnableEquivalenceClassCache=true"
 export KEEP_TERMINATED_POD_VOLUMES=false
 ./hack/local-up-cluster.sh -o ./_output/dockerized/bin/linux/amd64

@@ -10,6 +10,4 @@ set -o pipefail
 KUBE_ROOT=$GOPATH/src/k8s.io/kubernetes
 cd $KUBE_ROOT
 
-export KUBE_TEST_ARGS="-run '^(TestVolumeBindingRescheduling)'"
-export KUBE_TEST_VMODULE="scheduler*=5,pv*=5"
-make test-integration WHAT=./test/integration/scheduler GOFLAGS="-v" 
+make test-integration WHAT=./test/integration/scheduler GOFLAGS="-v" KUBE_TEST_VMODULE="attachdetach*=10,util*=10,pv*=4" KUBE_TEST_ARGS='-run TestVolumeBindingWithControllerRace'
