@@ -27,7 +27,6 @@ spec:
         - /usr/local/bin/cephfs-provisioner
         args:
         - -id=cephfs-provisioner-1
-        - -disable-namespace-isolation
-        - -set-quota
+        - -enable-quota
         - -v=4
       serviceAccount: cephfs-provisioner

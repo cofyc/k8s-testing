@@ -4,12 +4,12 @@ metadata:
   name: rbd
 provisioner: kubernetes.io/rbd
 parameters:
-  monitors: 192.168.2.128:6789
+  monitors: 192.168.2.137:6789
   pool: kube
   adminId: admin
   adminSecretNamespace: kube-system
   adminSecretName: ceph-admin-secret
   userId: kube
   userSecretName: ceph-secret
-  # imageFormat: "2"
-  # imageFeatures: layering
+  imageFormat: "2"
+  imageFeatures: layering

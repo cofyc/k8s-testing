@@ -1,0 +1,37 @@
+diff --git a/pkg/volume/cephfs/cephfs.go b/pkg/volume/cephfs/cephfs.go
+index a515863..bb23ec2 100644
+--- a/pkg/volume/cephfs/cephfs.go
++++ b/pkg/volume/cephfs/cephfs.go
+@@ -394,22 +394,16 @@ func (cephfsVolume *cephfs) execFuseMount(mountpoint string) error {
+ 	}
+ 	src += hosts[i]
+ 
+-	mountArgs := []string{}
+-	mountArgs = append(mountArgs, "-k")
+-	mountArgs = append(mountArgs, keyring_file)
+-	mountArgs = append(mountArgs, "-m")
+-	mountArgs = append(mountArgs, src)
+-	mountArgs = append(mountArgs, mountpoint)
+-	mountArgs = append(mountArgs, "-r")
+-	mountArgs = append(mountArgs, cephfsVolume.path)
+-	mountArgs = append(mountArgs, "--id")
+-	mountArgs = append(mountArgs, cephfsVolume.id)
+-
+-	glog.V(4).Infof("Mounting cmd ceph-fuse with arguments (%s)", mountArgs)
+-	command := exec.Command("ceph-fuse", mountArgs...)
+-	output, err := command.CombinedOutput()
+-	if err != nil || !(strings.Contains(string(output), "starting fuse")) {
+-		return fmt.Errorf("Ceph-fuse failed: %v\narguments: %s\nOutput: %s\n", err, mountArgs, string(output))
++	mountOpts := []string{}
++	mountOpts = append(mountOpts, fmt.Sprintf("ceph.mon_host", src)
++	mountOpts = append(mountOpts, fmt.Sprintf("ceph.id=%s", cephfsVolume.id))
++	mountOpts = append(mountOpts, fmt.Sprintf("ceph.keyring=%s", keyring_file))
++	mountOpts = append(mountOpts, fmt.Sprintf("ceph.client_mountpoint=%s", mountpoint)
++
++	glog.V(4).Infof("Mounting ceph-fuse at %s from %s with options: %s", mountOpts)
++	err = cephfsVolume.mounter.Mount("none", cephfsVolume.path, "fuse.ceph", mountOpts)
++	if err != nil {
++		return fmt.Errorf("Mounting ceph-fuse at %s failed: %v\noptions: %s\n", cephfsVolume.path, err, mountOpts)
+ 	}
+ 
+ 	return nil

@@ -50,10 +50,10 @@ if $build; then
     )
 fi
 
-export LOG_LEVEL=5
-export ALLOW_PRIVILEGED=
+export LOG_LEVEL=4
+export ALLOW_PRIVILEGED=true
 # export FEATURE_GATES="BlockVolume=true"
-export FEATURE_GATES="PersistentLocalVolumes=true,VolumeScheduling=true,MountPropagation=true,BlockVolume=true"
+export FEATURE_GATES="PersistentLocalVolumes=true,VolumeScheduling=true,MountPropagation=true"
 # export FEATURE_GATES="VolumeScheduling=true,EnableEquivalenceClassCache=true"
 export KEEP_TERMINATED_POD_VOLUMES=false
 ./hack/local-up-cluster.sh -o ./_output/dockerized/bin/linux/amd64

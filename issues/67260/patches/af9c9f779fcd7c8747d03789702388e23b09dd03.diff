@@ -1,0 +1,148 @@
+diff --git a/pkg/scheduler/core/equivalence/eqivalence.go b/pkg/scheduler/core/equivalence/eqivalence.go
+index 4ee59a3..374c053 100644
+--- a/pkg/scheduler/core/equivalence/eqivalence.go
++++ b/pkg/scheduler/core/equivalence/eqivalence.go
+@@ -70,12 +70,16 @@ func NewCache() *Cache {
+ type NodeCache struct {
+ 	mu    sync.RWMutex
+ 	cache predicateMap
++	// Flags which indicate if we received invalidation requests for each
++	// predicate during check was in flight.
++	receivedInvalidatioRequests map[string]bool
+ }
+ 
+ // newNodeCache returns an empty NodeCache.
+ func newNodeCache() *NodeCache {
+ 	return &NodeCache{
+ 		cache: make(predicateMap),
++		receivedInvalidatioRequests: make(map[string]bool),
+ 	}
+ }
+ 
+@@ -262,6 +266,11 @@ func (n *NodeCache) updateResult(
+ 
+ 	n.mu.Lock()
+ 	defer n.mu.Unlock()
++	if received, ok := n.receivedInvalidatioRequests[predicateKey]; ok && received {
++		// Ignore if we received a invalidation request for this predicate
++		// in flight.
++		return
++	}
+ 	// If cached predicate map already exists, just update the predicate by key
+ 	if predicates, ok := n.cache[predicateKey]; ok {
+ 		// maps in golang are references, no need to add them back
+@@ -291,6 +300,7 @@ func (n *NodeCache) lookupResult(
+ 	} else {
+ 		metrics.EquivalenceCacheMisses.Inc()
+ 	}
++	delete(n.receivedInvalidatioRequests, predicateKey)
+ 	return value, ok
+ }
+ 
+@@ -300,6 +310,7 @@ func (n *NodeCache) invalidatePreds(predicateKeys sets.String) {
+ 	defer n.mu.Unlock()
+ 	for predicateKey := range predicateKeys {
+ 		delete(n.cache, predicateKey)
++		n.receivedInvalidatioRequests[predicateKey] = true
+ 	}
+ }
+ 
+diff --git a/pkg/scheduler/core/equivalence/eqivalence_test.go b/pkg/scheduler/core/equivalence/eqivalence_test.go
+index 47e1d95..5da37f5 100644
+--- a/pkg/scheduler/core/equivalence/eqivalence_test.go
++++ b/pkg/scheduler/core/equivalence/eqivalence_test.go
+@@ -19,6 +19,7 @@ package equivalence
+ import (
+ 	"errors"
+ 	"reflect"
++	"sync"
+ 	"testing"
+ 
+ 	"k8s.io/api/core/v1"
+@@ -657,6 +658,86 @@ func TestGetEquivalenceHash(t *testing.T) {
+ 	}
+ }
+ 
++func TestInvalidateCachedPredicateInflight(t *testing.T) {
++	testPredicate := "GeneralPredicates"
++	podName := "testPod"
++	nodeName := "node1"
++	equivalenceHashForUpdatePredicate := uint64(123)
++	cachedItem := predicateItemType{
++		fit: false,
++		reasons: []algorithm.PredicateFailureReason{
++			predicates.ErrPodNotFitsHostPorts,
++		},
++	}
++	cache := &upToDateCache{}
++	node := schedulercache.NewNodeInfo()
++	testNode := &v1.Node{ObjectMeta: metav1.ObjectMeta{Name: nodeName}}
++	node.SetNode(testNode)
++	ecache := NewCache()
++	nodeCache, _ := ecache.GetNodeCache(testNode.Name)
++
++	// update cache
++	nodeCache.updateResult(
++		podName,
++		testPredicate,
++		cachedItem.fit,
++		cachedItem.reasons,
++		equivalenceHashForUpdatePredicate,
++		cache,
++		node,
++	)
++	// cache should exist
++	_, ok := nodeCache.lookupResult(podName, nodeName, testPredicate, equivalenceHashForUpdatePredicate)
++	if !ok {
++		t.Errorf("Failed: cached item for predicate key: %v on node: %v should exist",
++			testPredicate, nodeName)
++	}
++
++	var wg sync.WaitGroup
++
++	cachedInvalidatedCh := make(chan struct{})
++	beforeUpdatingCacheCh := make(chan struct{})
++
++	wg.Add(1)
++	go func() {
++		defer wg.Done()
++		result := predicateResult{
++			Fit:         cachedItem.fit,
++			FailReasons: cachedItem.reasons,
++		}
++		close(beforeUpdatingCacheCh)
++		// objects are updated and cache is invalidated
++		<-cachedInvalidatedCh
++		nodeCache.updateResult(
++			podName,
++			testPredicate,
++			result.Fit,
++			result.FailReasons,
++			equivalenceHashForUpdatePredicate,
++			cache,
++			node,
++		)
++	}()
++
++	wg.Add(1)
++	go func() {
++		defer wg.Done()
++		<-beforeUpdatingCacheCh
++		// objects are updated during predicate check was running
++		cachedItem.fit = true
++		// invalidate cache
++		ecache.InvalidatePredicates(sets.NewString(testPredicate))
++		close(cachedInvalidatedCh)
++	}()
++
++	wg.Wait()
++	_, ok = nodeCache.lookupResult(podName, nodeName, testPredicate, equivalenceHashForUpdatePredicate)
++	if ok {
++		t.Errorf("Failed: cached item for predicate key: %v on node: %v should be invalidated",
++			testPredicate, nodeName)
++	}
++}
++
+ func TestInvalidateCachedPredicateItemOfAllNodes(t *testing.T) {
+ 	testPredicate := "GeneralPredicates"
+ 	// tests is used to initialize all nodes

@@ -1,0 +1,782 @@
+diff --git a/pkg/scheduler/cache/BUILD b/pkg/scheduler/cache/BUILD
+index 69efd93..03eb03e 100644
+--- a/pkg/scheduler/cache/BUILD
++++ b/pkg/scheduler/cache/BUILD
+@@ -46,7 +46,6 @@ go_test(
+         "//staging/src/k8s.io/apimachinery/pkg/types:go_default_library",
+         "//staging/src/k8s.io/apimachinery/pkg/util/intstr:go_default_library",
+         "//staging/src/k8s.io/apimachinery/pkg/util/sets:go_default_library",
+-        "//staging/src/k8s.io/apimachinery/pkg/util/wait:go_default_library",
+         "//staging/src/k8s.io/apiserver/pkg/util/feature:go_default_library",
+     ],
+ )
+diff --git a/pkg/scheduler/cache/cache.go b/pkg/scheduler/cache/cache.go
+index 201b214..a456072 100644
+--- a/pkg/scheduler/cache/cache.go
++++ b/pkg/scheduler/cache/cache.go
+@@ -550,13 +550,6 @@ func (cache *schedulerCache) ListPDBs(selector labels.Selector) ([]*policy.PodDi
+ 	return pdbs, nil
+ }
+ 
+-func (cache *schedulerCache) IsUpToDate(n *NodeInfo) bool {
+-	cache.mu.RLock()
+-	defer cache.mu.RUnlock()
+-	node, ok := cache.nodes[n.Node().Name]
+-	return ok && n.generation == node.generation
+-}
+-
+ func (cache *schedulerCache) run() {
+ 	go wait.Until(cache.cleanupExpiredAssumedPods, cache.period, cache.stop)
+ }
+diff --git a/pkg/scheduler/cache/cache_test.go b/pkg/scheduler/cache/cache_test.go
+index 0da8ee9..8cd8c24 100644
+--- a/pkg/scheduler/cache/cache_test.go
++++ b/pkg/scheduler/cache/cache_test.go
+@@ -30,7 +30,6 @@ import (
+ 	"k8s.io/apimachinery/pkg/labels"
+ 	"k8s.io/apimachinery/pkg/types"
+ 	"k8s.io/apimachinery/pkg/util/intstr"
+-	"k8s.io/apimachinery/pkg/util/wait"
+ 	utilfeature "k8s.io/apiserver/pkg/util/feature"
+ 	"k8s.io/kubernetes/pkg/features"
+ 	priorityutil "k8s.io/kubernetes/pkg/scheduler/algorithm/priorities/util"
+@@ -1324,26 +1323,3 @@ func TestPDBOperations(t *testing.T) {
+ 		}
+ 	}
+ }
+-
+-func TestIsUpToDate(t *testing.T) {
+-	cache := New(time.Duration(0), wait.NeverStop)
+-	if err := cache.AddNode(&v1.Node{ObjectMeta: metav1.ObjectMeta{Name: "n1"}}); err != nil {
+-		t.Errorf("Could not add node: %v", err)
+-	}
+-	s := cache.Snapshot()
+-	node := s.Nodes["n1"]
+-	if !cache.IsUpToDate(node) {
+-		t.Errorf("Node incorrectly marked as stale")
+-	}
+-	pod := &v1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "p1", UID: "p1"}, Spec: v1.PodSpec{NodeName: "n1"}}
+-	if err := cache.AddPod(pod); err != nil {
+-		t.Errorf("Could not add pod: %v", err)
+-	}
+-	if cache.IsUpToDate(node) {
+-		t.Errorf("Node incorrectly marked as up to date")
+-	}
+-	badNode := &NodeInfo{node: &v1.Node{ObjectMeta: metav1.ObjectMeta{Name: "n2"}}}
+-	if cache.IsUpToDate(badNode) {
+-		t.Errorf("Nonexistant node incorrectly marked as up to date")
+-	}
+-}
+diff --git a/pkg/scheduler/cache/interface.go b/pkg/scheduler/cache/interface.go
+index 3366884..ec33129 100644
+--- a/pkg/scheduler/cache/interface.go
++++ b/pkg/scheduler/cache/interface.go
+@@ -122,9 +122,6 @@ type Cache interface {
+ 
+ 	// Snapshot takes a snapshot on current cache
+ 	Snapshot() *Snapshot
+-
+-	// IsUpToDate returns true if the given NodeInfo matches the current data in the cache.
+-	IsUpToDate(n *NodeInfo) bool
+ }
+ 
+ // Snapshot is a snapshot of cache state
+diff --git a/pkg/scheduler/core/equivalence/eqivalence.go b/pkg/scheduler/core/equivalence/eqivalence.go
+index 8ffab1d..287d6d9 100644
+--- a/pkg/scheduler/core/equivalence/eqivalence.go
++++ b/pkg/scheduler/core/equivalence/eqivalence.go
+@@ -49,6 +49,7 @@ type Cache struct {
+ 	// the reality is lock contention in first level cache is rare.
+ 	mu          sync.RWMutex
+ 	nodeToCache nodeMap
++	generations map[string]uint32
+ }
+ 
+ // NewCache create an empty equiv class cache.
+@@ -70,16 +71,18 @@ func NewCache() *Cache {
+ type NodeCache struct {
+ 	mu    sync.RWMutex
+ 	cache predicateMap
+-	// Flags which indicate if we received invalidation requests for each
+-	// predicate during check was in flight.
+-	receivedInvalidationRequests map[string]bool
++	// Generation for this node cache, incremented on node invalidation.
++	generation uint32
++	// Generations for predicates, incremented on predicate invalidation.
++	// Created on first update. Use 0 if does not exist.
++	predicateGenerations map[string]uint32
+ }
+ 
+ // newNodeCache returns an empty NodeCache.
+ func newNodeCache() *NodeCache {
+ 	return &NodeCache{
+-		cache: make(predicateMap),
+-		receivedInvalidationRequests: make(map[string]bool),
++		cache:                make(predicateMap),
++		predicateGenerations: make(map[string]uint32),
+ 	}
+ }
+ 
+@@ -126,7 +129,19 @@ func (c *Cache) InvalidatePredicatesOnNode(nodeName string, predicateKeys sets.S
+ func (c *Cache) InvalidateAllPredicatesOnNode(nodeName string) {
+ 	c.mu.Lock()
+ 	defer c.mu.Unlock()
+-	delete(c.nodeToCache, nodeName)
++	n, ok := c.nodeToCache[nodeName]
++	if ok {
++		if len(n.cache) > 0 {
++			n.cache = make(predicateMap)
++		}
++		if len(n.predicateGenerations) > 0 {
++			n.predicateGenerations = make(map[string]uint32)
++		}
++	} else {
++		n = newNodeCache()
++		c.nodeToCache[nodeName] = n
++	}
++	n.generation++
+ 	glog.V(5).Infof("Cache invalidation: node=%s,predicates=*", nodeName)
+ }
+ 
+@@ -210,7 +225,7 @@ type predicateResult struct {
+ // RunPredicate returns a cached predicate result. In case of a cache miss, the predicate will be
+ // run and its results cached for the next call.
+ //
+-// NOTE: RunPredicate will not update the equivalence cache if the given NodeInfo is stale.
++// NOTE: RunPredicate will not update the equivalence cache if generation does not match live version.
+ func (n *NodeCache) RunPredicate(
+ 	pred algorithm.FitPredicate,
+ 	predicateKey string,
+@@ -225,7 +240,7 @@ func (n *NodeCache) RunPredicate(
+ 		return false, []algorithm.PredicateFailureReason{}, fmt.Errorf("nodeInfo is nil or node is invalid")
+ 	}
+ 
+-	result, ok := n.lookupResult(pod.GetName(), nodeInfo.Node().GetName(), predicateKey, equivClass.hash)
++	result, generation, ok := n.lookupResult(pod.GetName(), nodeInfo.Node().GetName(), predicateKey, equivClass.hash)
+ 	if ok {
+ 		return result.Fit, result.FailReasons, nil
+ 	}
+@@ -234,7 +249,7 @@ func (n *NodeCache) RunPredicate(
+ 		return fit, reasons, err
+ 	}
+ 	if cache != nil {
+-		n.updateResult(pod.GetName(), predicateKey, fit, reasons, equivClass.hash, cache, nodeInfo)
++		n.updateResult(pod.GetName(), predicateKey, fit, reasons, generation, equivClass.hash, cache, nodeInfo)
+ 	}
+ 	return fit, reasons, nil
+ }
+@@ -244,6 +259,7 @@ func (n *NodeCache) updateResult(
+ 	podName, predicateKey string,
+ 	fit bool,
+ 	reasons []algorithm.PredicateFailureReason,
++	generation uint64,
+ 	equivalenceHash uint64,
+ 	cache schedulercache.Cache,
+ 	nodeInfo *schedulercache.NodeInfo,
+@@ -253,11 +269,6 @@ func (n *NodeCache) updateResult(
+ 		metrics.EquivalenceCacheWrites.WithLabelValues("discarded_bad_node").Inc()
+ 		return
+ 	}
+-	// Skip update if NodeInfo is stale.
+-	if !cache.IsUpToDate(nodeInfo) {
+-		metrics.EquivalenceCacheWrites.WithLabelValues("discarded_stale").Inc()
+-		return
+-	}
+ 
+ 	predicateItem := predicateResult{
+ 		Fit:         fit,
+@@ -266,9 +277,15 @@ func (n *NodeCache) updateResult(
+ 
+ 	n.mu.Lock()
+ 	defer n.mu.Unlock()
+-	if received, ok := n.receivedInvalidationRequests[predicateKey]; ok && received {
+-		// Ignore if we received a invalidation request for this predicate
+-		// in flight.
++	livePredicateGeneration, ok := n.predicateGenerations[predicateKey]
++	if !ok {
++		livePredicateGeneration = 0
++	}
++	liveGeneration := uint64(n.generation)<<32 | uint64(livePredicateGeneration)
++	if generation != liveGeneration {
++		// Generation of this predicate has been updated since we last looked
++		// up, this indicates that we received a invalidation request during
++		// this time. Cache may be stale, skip update.
+ 		return
+ 	}
+ 	// If cached predicate map already exists, just update the predicate by key
+@@ -286,12 +303,12 @@ func (n *NodeCache) updateResult(
+ 		nodeInfo.Node().Name, predicateKey, podName, predicateItem)
+ }
+ 
+-// lookupResult returns cached predicate results and a bool saying whether a
+-// cache entry was found.
++// lookupResult returns cached predicate results with a associated generation
++// and a bool saying whether a cache entry was found.
+ func (n *NodeCache) lookupResult(
+ 	podName, nodeName, predicateKey string,
+ 	equivalenceHash uint64,
+-) (value predicateResult, ok bool) {
++) (value predicateResult, generation uint64, ok bool) {
+ 	n.mu.RLock()
+ 	defer n.mu.RUnlock()
+ 	value, ok = n.cache[predicateKey][equivalenceHash]
+@@ -300,8 +317,12 @@ func (n *NodeCache) lookupResult(
+ 	} else {
+ 		metrics.EquivalenceCacheMisses.Inc()
+ 	}
+-	delete(n.receivedInvalidationRequests, predicateKey)
+-	return value, ok
++	predicateGeneration := uint32(0)
++	if val, ok := n.predicateGenerations[predicateKey]; ok {
++		predicateGeneration = val
++	}
++	generation = uint64(n.generation)<<32 | uint64(predicateGeneration)
++	return value, generation, ok
+ }
+ 
+ // invalidatePreds deletes cached predicates by given keys.
+@@ -310,7 +331,11 @@ func (n *NodeCache) invalidatePreds(predicateKeys sets.String) {
+ 	defer n.mu.Unlock()
+ 	for predicateKey := range predicateKeys {
+ 		delete(n.cache, predicateKey)
+-		n.receivedInvalidationRequests[predicateKey] = true
++		if _, ok := n.predicateGenerations[predicateKey]; ok {
++			n.predicateGenerations[predicateKey]++
++		} else {
++			n.predicateGenerations[predicateKey] = 1
++		}
+ 	}
+ }
+ 
+diff --git a/pkg/scheduler/core/equivalence/eqivalence_test.go b/pkg/scheduler/core/equivalence/eqivalence_test.go
+index 5da37f5..3feb99b 100644
+--- a/pkg/scheduler/core/equivalence/eqivalence_test.go
++++ b/pkg/scheduler/core/equivalence/eqivalence_test.go
+@@ -156,16 +156,6 @@ type predicateItemType struct {
+ 	reasons []algorithm.PredicateFailureReason
+ }
+ 
+-// upToDateCache is a fake Cache where IsUpToDate always returns true.
+-type upToDateCache = schedulertesting.FakeCache
+-
+-// staleNodeCache is a fake Cache where IsUpToDate always returns false.
+-type staleNodeCache struct {
+-	schedulertesting.FakeCache
+-}
+-
+-func (c *staleNodeCache) IsUpToDate(*schedulercache.NodeInfo) bool { return false }
+-
+ // mockPredicate provides an algorithm.FitPredicate with pre-set return values.
+ type mockPredicate struct {
+ 	fit       bool
+@@ -191,7 +181,7 @@ func TestRunPredicate(t *testing.T) {
+ 		{
+ 			name:             "pod fits/cache hit",
+ 			pred:             mockPredicate{},
+-			cache:            &upToDateCache{},
++			cache:            &schedulertesting.FakeCache{},
+ 			expectFit:        true,
+ 			expectCacheHit:   true,
+ 			expectCacheWrite: false,
+@@ -199,23 +189,15 @@ func TestRunPredicate(t *testing.T) {
+ 		{
+ 			name:             "pod fits/cache miss",
+ 			pred:             mockPredicate{fit: true},
+-			cache:            &upToDateCache{},
++			cache:            &schedulertesting.FakeCache{},
+ 			expectFit:        true,
+ 			expectCacheHit:   false,
+ 			expectCacheWrite: true,
+ 		},
+ 		{
+-			name:             "pod fits/cache miss/no write",
+-			pred:             mockPredicate{fit: true},
+-			cache:            &staleNodeCache{},
+-			expectFit:        true,
+-			expectCacheHit:   false,
+-			expectCacheWrite: false,
+-		},
+-		{
+ 			name:             "pod doesn't fit/cache miss",
+ 			pred:             mockPredicate{reasons: []algorithm.PredicateFailureReason{predicates.ErrFakePredicate}},
+-			cache:            &upToDateCache{},
++			cache:            &schedulertesting.FakeCache{},
+ 			expectFit:        false,
+ 			expectCacheHit:   false,
+ 			expectCacheWrite: true,
+@@ -224,7 +206,7 @@ func TestRunPredicate(t *testing.T) {
+ 		{
+ 			name:             "pod doesn't fit/cache hit",
+ 			pred:             mockPredicate{},
+-			cache:            &upToDateCache{},
++			cache:            &schedulertesting.FakeCache{},
+ 			expectFit:        false,
+ 			expectCacheHit:   true,
+ 			expectCacheWrite: false,
+@@ -233,7 +215,7 @@ func TestRunPredicate(t *testing.T) {
+ 		{
+ 			name:             "predicate error",
+ 			pred:             mockPredicate{err: errors.New("This is expected")},
+-			cache:            &upToDateCache{},
++			cache:            &schedulertesting.FakeCache{},
+ 			expectFit:        false,
+ 			expectCacheHit:   false,
+ 			expectCacheWrite: false,
+@@ -255,7 +237,7 @@ func TestRunPredicate(t *testing.T) {
+ 
+ 			equivClass := NewClass(pod)
+ 			if test.expectCacheHit {
+-				nodeCache.updateResult(pod.Name, "testPredicate", test.expectFit, test.expectedReasons, equivClass.hash, test.cache, node)
++				nodeCache.updateResult(pod.Name, "testPredicate", test.expectFit, test.expectedReasons, 0, equivClass.hash, test.cache, node)
+ 			}
+ 
+ 			fit, reasons, err := nodeCache.RunPredicate(test.pred.predicate, "testPredicate", pod, meta, node, equivClass, test.cache)
+@@ -289,7 +271,7 @@ func TestRunPredicate(t *testing.T) {
+ 			if !test.expectCacheHit && test.pred.callCount == 0 {
+ 				t.Errorf("Predicate should be called")
+ 			}
+-			_, ok := nodeCache.lookupResult(pod.Name, node.Node().Name, "testPredicate", equivClass.hash)
++			_, _, ok := nodeCache.lookupResult(pod.Name, node.Node().Name, "testPredicate", equivClass.hash)
+ 			if !ok && test.expectCacheWrite {
+ 				t.Errorf("Cache write should happen")
+ 			}
+@@ -327,7 +309,7 @@ func TestUpdateResult(t *testing.T) {
+ 			expectCacheItem: predicateResult{
+ 				Fit: true,
+ 			},
+-			cache: &upToDateCache{},
++			cache: &schedulertesting.FakeCache{},
+ 		},
+ 		{
+ 			name:               "test 2",
+@@ -340,7 +322,7 @@ func TestUpdateResult(t *testing.T) {
+ 			expectCacheItem: predicateResult{
+ 				Fit: false,
+ 			},
+-			cache: &upToDateCache{},
++			cache: &schedulertesting.FakeCache{},
+ 		},
+ 	}
+ 	for _, test := range tests {
+@@ -368,6 +350,7 @@ func TestUpdateResult(t *testing.T) {
+ 				test.predicateKey,
+ 				test.fit,
+ 				test.reasons,
++				0,
+ 				test.equivalenceHash,
+ 				test.cache,
+ 				node,
+@@ -424,7 +407,7 @@ func TestLookupResult(t *testing.T) {
+ 				fit:     false,
+ 				reasons: []algorithm.PredicateFailureReason{},
+ 			},
+-			cache: &upToDateCache{},
++			cache: &schedulertesting.FakeCache{},
+ 		},
+ 		{
+ 			name:     "test 2",
+@@ -441,7 +424,7 @@ func TestLookupResult(t *testing.T) {
+ 				fit:     true,
+ 				reasons: []algorithm.PredicateFailureReason{},
+ 			},
+-			cache: &upToDateCache{},
++			cache: &schedulertesting.FakeCache{},
+ 		},
+ 		{
+ 			name:     "test 3",
+@@ -459,7 +442,7 @@ func TestLookupResult(t *testing.T) {
+ 				fit:     false,
+ 				reasons: []algorithm.PredicateFailureReason{predicates.ErrPodNotFitsHostPorts},
+ 			},
+-			cache: &upToDateCache{},
++			cache: &schedulertesting.FakeCache{},
+ 		},
+ 		{
+ 			name:     "test 4",
+@@ -478,7 +461,7 @@ func TestLookupResult(t *testing.T) {
+ 				fit:     false,
+ 				reasons: []algorithm.PredicateFailureReason{},
+ 			},
+-			cache: &upToDateCache{},
++			cache: &schedulertesting.FakeCache{},
+ 		},
+ 	}
+ 
+@@ -498,6 +481,7 @@ func TestLookupResult(t *testing.T) {
+ 				test.predicateKey,
+ 				test.cachedItem.fit,
+ 				test.cachedItem.reasons,
++				0,
+ 				test.equivalenceHashForUpdatePredicate,
+ 				test.cache,
+ 				node,
+@@ -509,7 +493,7 @@ func TestLookupResult(t *testing.T) {
+ 				ecache.InvalidatePredicatesOnNode(test.nodeName, predicateKeys)
+ 			}
+ 			// calculate predicate with equivalence cache
+-			result, ok := nodeCache.lookupResult(test.podName,
++			result, _, ok := nodeCache.lookupResult(test.podName,
+ 				test.nodeName,
+ 				test.predicateKey,
+ 				test.equivalenceHashForCalPredicate,
+@@ -669,7 +653,7 @@ func TestInvalidateCachedPredicateInflight(t *testing.T) {
+ 			predicates.ErrPodNotFitsHostPorts,
+ 		},
+ 	}
+-	cache := &upToDateCache{}
++	cache := &schedulertesting.FakeCache{}
+ 	node := schedulercache.NewNodeInfo()
+ 	testNode := &v1.Node{ObjectMeta: metav1.ObjectMeta{Name: nodeName}}
+ 	node.SetNode(testNode)
+@@ -682,12 +666,13 @@ func TestInvalidateCachedPredicateInflight(t *testing.T) {
+ 		testPredicate,
+ 		cachedItem.fit,
+ 		cachedItem.reasons,
++		0,
+ 		equivalenceHashForUpdatePredicate,
+ 		cache,
+ 		node,
+ 	)
+ 	// cache should exist
+-	_, ok := nodeCache.lookupResult(podName, nodeName, testPredicate, equivalenceHashForUpdatePredicate)
++	_, generation, ok := nodeCache.lookupResult(podName, nodeName, testPredicate, equivalenceHashForUpdatePredicate)
+ 	if !ok {
+ 		t.Errorf("Failed: cached item for predicate key: %v on node: %v should exist",
+ 			testPredicate, nodeName)
+@@ -713,6 +698,7 @@ func TestInvalidateCachedPredicateInflight(t *testing.T) {
+ 			testPredicate,
+ 			result.Fit,
+ 			result.FailReasons,
++			generation,
+ 			equivalenceHashForUpdatePredicate,
+ 			cache,
+ 			node,
+@@ -731,7 +717,7 @@ func TestInvalidateCachedPredicateInflight(t *testing.T) {
+ 	}()
+ 
+ 	wg.Wait()
+-	_, ok = nodeCache.lookupResult(podName, nodeName, testPredicate, equivalenceHashForUpdatePredicate)
++	_, _, ok = nodeCache.lookupResult(podName, nodeName, testPredicate, equivalenceHashForUpdatePredicate)
+ 	if ok {
+ 		t.Errorf("Failed: cached item for predicate key: %v on node: %v should be invalidated",
+ 			testPredicate, nodeName)
+@@ -760,7 +746,7 @@ func TestInvalidateCachedPredicateItemOfAllNodes(t *testing.T) {
+ 					predicates.ErrPodNotFitsHostPorts,
+ 				},
+ 			},
+-			cache: &upToDateCache{},
++			cache: &schedulertesting.FakeCache{},
+ 		},
+ 		{
+ 			name:     "hash predicate 456 not fits host ports",
+@@ -773,7 +759,7 @@ func TestInvalidateCachedPredicateItemOfAllNodes(t *testing.T) {
+ 					predicates.ErrPodNotFitsHostPorts,
+ 				},
+ 			},
+-			cache: &upToDateCache{},
++			cache: &schedulertesting.FakeCache{},
+ 		},
+ 		{
+ 			name:     "hash predicate 123 fits",
+@@ -783,7 +769,7 @@ func TestInvalidateCachedPredicateItemOfAllNodes(t *testing.T) {
+ 			cachedItem: predicateItemType{
+ 				fit: true,
+ 			},
+-			cache: &upToDateCache{},
++			cache: &schedulertesting.FakeCache{},
+ 		},
+ 	}
+ 	ecache := NewCache()
+@@ -800,6 +786,7 @@ func TestInvalidateCachedPredicateItemOfAllNodes(t *testing.T) {
+ 			testPredicate,
+ 			test.cachedItem.fit,
+ 			test.cachedItem.reasons,
++			0,
+ 			test.equivalenceHashForUpdatePredicate,
+ 			test.cache,
+ 			node,
+@@ -842,7 +829,7 @@ func TestInvalidateAllCachedPredicateItemOfNode(t *testing.T) {
+ 				fit:     false,
+ 				reasons: []algorithm.PredicateFailureReason{predicates.ErrPodNotFitsHostPorts},
+ 			},
+-			cache: &upToDateCache{},
++			cache: &schedulertesting.FakeCache{},
+ 		},
+ 		{
+ 			name:     "hash predicate 456 not fits host ports",
+@@ -853,7 +840,7 @@ func TestInvalidateAllCachedPredicateItemOfNode(t *testing.T) {
+ 				fit:     false,
+ 				reasons: []algorithm.PredicateFailureReason{predicates.ErrPodNotFitsHostPorts},
+ 			},
+-			cache: &upToDateCache{},
++			cache: &schedulertesting.FakeCache{},
+ 		},
+ 		{
+ 			name:     "hash predicate 123 fits host ports",
+@@ -863,7 +850,7 @@ func TestInvalidateAllCachedPredicateItemOfNode(t *testing.T) {
+ 			cachedItem: predicateItemType{
+ 				fit: true,
+ 			},
+-			cache: &upToDateCache{},
++			cache: &schedulertesting.FakeCache{},
+ 		},
+ 	}
+ 	ecache := NewCache()
+@@ -880,6 +867,7 @@ func TestInvalidateAllCachedPredicateItemOfNode(t *testing.T) {
+ 			testPredicate,
+ 			test.cachedItem.fit,
+ 			test.cachedItem.reasons,
++			0,
+ 			test.equivalenceHashForUpdatePredicate,
+ 			test.cache,
+ 			node,
+@@ -889,9 +877,12 @@ func TestInvalidateAllCachedPredicateItemOfNode(t *testing.T) {
+ 	for _, test := range tests {
+ 		t.Run(test.name, func(t *testing.T) {
+ 			// invalidate cached predicate for all nodes
++			nodeCache, _ := ecache.GetNodeCache(test.nodeName)
++			oldGeneration := nodeCache.generation
+ 			ecache.InvalidateAllPredicatesOnNode(test.nodeName)
+-			if _, ok := ecache.GetNodeCache(test.nodeName); ok {
+-				t.Errorf("Failed: cached item for node: %v should be invalidated", test.nodeName)
++			newNodeCache, _ := ecache.GetNodeCache(test.nodeName)
++			if newNodeCache.generation <= oldGeneration {
++				t.Errorf("Failed: cached item for node: %v generation should be incremented", test.nodeName)
+ 			}
+ 		})
+ 	}
+diff --git a/pkg/scheduler/core/generic_scheduler_test.go b/pkg/scheduler/core/generic_scheduler_test.go
+index a7177fc..7ec1ef2 100644
+--- a/pkg/scheduler/core/generic_scheduler_test.go
++++ b/pkg/scheduler/core/generic_scheduler_test.go
+@@ -1403,61 +1403,50 @@ func TestPreempt(t *testing.T) {
+ 	}
+ }
+ 
+-// syncingMockCache delegates method calls to an actual Cache,
+-// but calls to UpdateNodeNameToInfoMap synchronize with the test.
+-type syncingMockCache struct {
+-	schedulercache.Cache
+-	cycleStart, cacheInvalidated chan struct{}
+-	once                         sync.Once
+-}
+-
+-// UpdateNodeNameToInfoMap delegates to the real implementation, but on the first call, it
+-// synchronizes with the test.
+-//
+-// Since UpdateNodeNameToInfoMap is one of the first steps of (*genericScheduler).Schedule, we use
+-// this point to signal to the test that a scheduling cycle has started.
+-func (c *syncingMockCache) UpdateNodeNameToInfoMap(infoMap map[string]*schedulercache.NodeInfo) error {
+-	err := c.Cache.UpdateNodeNameToInfoMap(infoMap)
+-	c.once.Do(func() {
+-		c.cycleStart <- struct{}{}
+-		<-c.cacheInvalidated
+-	})
+-	return err
+-}
+-
+ // TestCacheInvalidationRace tests that equivalence cache invalidation is correctly
+ // handled when an invalidation event happens early in a scheduling cycle. Specifically, the event
+ // occurs after schedulercache is snapshotted and before equivalence cache lock is acquired.
+ func TestCacheInvalidationRace(t *testing.T) {
+ 	// Create a predicate that returns false the first time and true on subsequent calls.
+ 	podWillFit := false
+-	var callCount int
++	var (
++		callCount        int
++		cycleStart       = make(chan struct{})
++		cacheInvalidated = make(chan struct{})
++		once             sync.Once
++	)
+ 	testPredicate := func(pod *v1.Pod,
+ 		meta algorithm.PredicateMetadata,
+ 		nodeInfo *schedulercache.NodeInfo) (bool, []algorithm.PredicateFailureReason, error) {
+ 		callCount++
++		var (
++			fit            bool
++			failureReasons []algorithm.PredicateFailureReason
++		)
+ 		if !podWillFit {
+ 			podWillFit = true
+-			return false, []algorithm.PredicateFailureReason{algorithmpredicates.ErrFakePredicate}, nil
++			fit = false
++			failureReasons = append(failureReasons, algorithmpredicates.ErrFakePredicate)
++		} else {
++			fit = true
+ 		}
+-		return true, nil, nil
++		once.Do(func() {
++			cycleStart <- struct{}{}
++			<-cacheInvalidated
++		})
++		return fit, failureReasons, nil
+ 	}
+ 
+ 	// Set up the mock cache.
+ 	cache := schedulercache.New(time.Duration(0), wait.NeverStop)
+ 	testNode := &v1.Node{ObjectMeta: metav1.ObjectMeta{Name: "machine1"}}
+ 	cache.AddNode(testNode)
+-	mockCache := &syncingMockCache{
+-		Cache:            cache,
+-		cycleStart:       make(chan struct{}),
+-		cacheInvalidated: make(chan struct{}),
+-	}
+ 
+ 	eCache := equivalence.NewCache()
+ 	// Ensure that equivalence cache invalidation happens after the scheduling cycle starts, but before
+ 	// the equivalence cache would be updated.
+ 	go func() {
+-		<-mockCache.cycleStart
++		<-cycleStart
+ 		pod := &v1.Pod{
+ 			ObjectMeta: metav1.ObjectMeta{Name: "new-pod", UID: "new-pod"},
+ 			Spec:       v1.PodSpec{NodeName: "machine1"}}
+@@ -1465,7 +1454,7 @@ func TestCacheInvalidationRace(t *testing.T) {
+ 			t.Errorf("Could not add pod to cache: %v", err)
+ 		}
+ 		eCache.InvalidateAllPredicatesOnNode("machine1")
+-		mockCache.cacheInvalidated <- struct{}{}
++		cacheInvalidated <- struct{}{}
+ 	}()
+ 
+ 	// Set up the scheduler.
+@@ -1474,7 +1463,7 @@ func TestCacheInvalidationRace(t *testing.T) {
+ 	prioritizers := []algorithm.PriorityConfig{{Map: EqualPriorityMap, Weight: 1}}
+ 	pvcLister := schedulertesting.FakePersistentVolumeClaimLister([]*v1.PersistentVolumeClaim{})
+ 	scheduler := NewGenericScheduler(
+-		mockCache,
++		cache,
+ 		eCache,
+ 		NewSchedulingQueue(),
+ 		ps,
+diff --git a/pkg/scheduler/testing/fake_cache.go b/pkg/scheduler/testing/fake_cache.go
+index 65036bd..6a27343 100644
+--- a/pkg/scheduler/testing/fake_cache.go
++++ b/pkg/scheduler/testing/fake_cache.go
+@@ -105,6 +105,3 @@ func (f *FakeCache) FilteredList(filter schedulercache.PodFilter, selector label
+ func (f *FakeCache) Snapshot() *schedulercache.Snapshot {
+ 	return &schedulercache.Snapshot{}
+ }
+-
+-// IsUpToDate is a fake mthod for testing
+-func (f *FakeCache) IsUpToDate(*schedulercache.NodeInfo) bool { return true }
+diff --git a/test/integration/scheduler/predicates_test.go b/test/integration/scheduler/predicates_test.go
+index 3edbee5..480b61e 100644
+--- a/test/integration/scheduler/predicates_test.go
++++ b/test/integration/scheduler/predicates_test.go
+@@ -17,6 +17,8 @@ limitations under the License.
+ package scheduler
+ 
+ import (
++	"fmt"
++	"sync/atomic"
+ 	"testing"
+ 	"time"
+ 
+@@ -25,6 +27,8 @@ import (
+ 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+ 	"k8s.io/apimachinery/pkg/util/sets"
+ 	"k8s.io/apimachinery/pkg/util/wait"
++	"k8s.io/client-go/informers"
++	"k8s.io/client-go/tools/cache"
+ 	"k8s.io/kubernetes/pkg/scheduler/algorithm"
+ 	"k8s.io/kubernetes/pkg/scheduler/algorithm/predicates"
+ 	schedulerapi "k8s.io/kubernetes/pkg/scheduler/api"
+@@ -929,7 +933,8 @@ func TestNodePIDPressure(t *testing.T) {
+ 
+ func TestInvalidatePredicateInFlight(t *testing.T) {
+ 	predicateName := "test-invalidate-predicate"
+-	predicateDelayBegin := false
++	// A special flag used to notify test predicate to add a delay.
++	predicateDelayBegin := int32(0)
+ 	predicateDelayStartCh := make(chan struct{})
+ 	predicateDelayEndCh := make(chan struct{})
+ 	factory.RegisterFitPredicate(predicateName, func(pod *v1.Pod, _ algorithm.PredicateMetadata, _ *schedulercache.NodeInfo) (bool, []algorithm.PredicateFailureReason, error) {
+@@ -944,7 +949,8 @@ func TestInvalidatePredicateInFlight(t *testing.T) {
+ 		} else {
+ 			fit = true
+ 		}
+-		if predicateDelayBegin {
++		if atomic.LoadInt32(&predicateDelayBegin) > 0 {
++			fmt.Printf("begin to add delay\n")
+ 			select {
+ 			case <-predicateDelayStartCh:
+ 			default:
+@@ -996,21 +1002,37 @@ func TestInvalidatePredicateInFlight(t *testing.T) {
+ 		t.Fatalf("Test Failed: error: %v, while creating pod", err)
+ 	}
+ 
+-	// Reschedule this pod forever if not assigned.
++	// Reschedule this pod if not assigned.
++	podCh := make(chan *v1.Pod)
++	sharedInformerFactory := informers.NewSharedInformerFactory(context.clientSet, time.Second)
++	podInformer := sharedInformerFactory.Core().V1().Pods()
++	podInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
++		AddFunc: func(obj interface{}) {
++			pod, ok := obj.(*v1.Pod)
++			if ok {
++				podCh <- pod
++			}
++		},
++		UpdateFunc: func(_, obj interface{}) {
++			pod, ok := obj.(*v1.Pod)
++			if ok {
++				podCh <- pod
++			}
++		},
++	})
++	sharedInformerFactory.Start(context.schedulerConfig.StopEverything)
++	sharedInformerFactory.WaitForCacheSync(context.schedulerConfig.StopEverything)
+ 	context.schedulerConfig.NextPod = func() *v1.Pod {
+-		for {
+-			pod, err := context.clientSet.CoreV1().Pods(testPod.Namespace).Get(testPod.Name, metav1.GetOptions{})
+-			if err != nil {
+-				time.Sleep(time.Second)
++		for pod := range podCh {
++			if pod == nil {
+ 				continue
+ 			}
+ 			if len(pod.Spec.NodeName) != 0 {
+-				select {}
++				continue
+ 			}
+-			// Add a delay to reduce cpu usage.
+-			time.Sleep(time.Second)
+ 			return pod
+ 		}
++		panic("unreachable")
+ 	}
+ 
+ 	// Wait pod is unschedulable.
+@@ -1019,11 +1041,14 @@ func TestInvalidatePredicateInFlight(t *testing.T) {
+ 		t.Errorf("Test Failed: error, %v, while waiting for scheduled", err)
+ 	}
+ 
+-	// Invalidate cache but add delay for predicate function.
+-	predicateDelayBegin = true
++	// Notify test predicate to add delay.
++	atomic.AddInt32(&predicateDelayBegin, 1)
++	// Invalidate cache.
+ 	updateAndInvalidate(t, context, testPod, predicateName, "")
++	// Wait until test predicate
+ 	<-predicateDelayStartCh
+ 	// Let pod to pass when old predicate goroutine is in flight.
++	fmt.Printf("pod should be ok\n")
+ 	updateAndInvalidate(t, context, testPod, predicateName, "pass")
+ 	close(predicateDelayEndCh)
+ 
+@@ -1039,12 +1064,12 @@ func TestInvalidatePredicateInFlight(t *testing.T) {
+ func updateAndInvalidate(t *testing.T, context *TestContext, testPod *v1.Pod, predicateName string, value string) {
+ 	pod, err := context.clientSet.CoreV1().Pods(testPod.Namespace).Get(testPod.Name, metav1.GetOptions{})
+ 	if err != nil {
+-		t.Fatalf("Failed to get pod: %s/%s", pod.Namespace, pod.Name)
++		t.Fatalf("Failed to get pod %s/%s: %v", pod.Namespace, pod.Name, err)
+ 	}
+ 	metav1.SetMetaDataAnnotation(&pod.ObjectMeta, "version", value)
+ 	_, err = context.clientSet.CoreV1().Pods(testPod.Namespace).Update(pod)
+ 	if err != nil {
+-		t.Fatalf("Failed to update pod: %s/%s", pod.Namespace, pod.Name)
++		t.Fatalf("Failed to update pod %s/%s: %v", pod.Namespace, pod.Name, err)
+ 	}
+ 	context.schedulerConfig.Ecache.InvalidatePredicates(sets.NewString(predicateName))
+ }
