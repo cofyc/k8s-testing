@@ -1,0 +1,66 @@
+diff --git a/test/integration/scheduler/volume_binding_test.go b/test/integration/scheduler/volume_binding_test.go
+index 9bb20f5..879bb4c 100644
+--- a/test/integration/scheduler/volume_binding_test.go
++++ b/test/integration/scheduler/volume_binding_test.go
+@@ -619,6 +619,61 @@ func TestVolumeBindingWithAffinity(t *testing.T) {
+ 	testVolumeBindingWithAffinity(t, true, numNodes, numPods, numPVsFirstNode)
+ }
+ 
++// TestVolumeBindingPartial tests scheduler will not bind PVs partially.
++// TODO: Refactor to table driven tests when necessary.
++func TestVolumeBindingPartial(t *testing.T) {
++	features := map[string]bool{
++		"VolumeScheduling":       true,
++		"PersistentLocalVolumes": true,
++	}
++	config := setupCluster(t, "volume-scheduling-", 2, features, 0, 0, false)
++	defer config.teardown()
++
++	// Create PVs
++	pvs := []testPV{
++		{
++			name:   "pv1",
++			scMode: modeWait,
++			node:   node1,
++		},
++		{
++			name:   "pv2",
++			scMode: modeWait,
++			node:   node1,
++		},
++		{
++			name:   "pv3",
++			scMode: modeWait,
++			node:   node2,
++		},
++	}
++	for _, pvConfig := range pvs {
++		pv := makePV(pvConfig.name, sharedClasses[pvConfig.scMode].Name, pvConfig.preboundPVC, config.ns, pvConfig.node)
++		if _, err := config.client.CoreV1().PersistentVolumes().Create(pv); err != nil {
++			t.Fatalf("Failed to create PersistentVolume %q: %v", pv.Name, err)
++		}
++	}
++
++	// Create PVCs
++	// for _, pvcConfig := range test.pvcs {
++	// pvc := makePVC(pvcConfig.name, config.ns, &storageClassName, "")
++	// if _, err := config.client.CoreV1().PersistentVolumeClaims(config.ns).Create(pvc); err != nil {
++	// t.Fatalf("Failed to create PersistentVolumeClaim %q: %v", pvc.Name, err)
++	// }
++	// }
++
++	// Create pod
++	// if _, err := config.client.CoreV1().Pods(config.ns).Create(test.pod); err != nil {
++	// t.Fatalf("Failed to create Pod %q: %v", test.pod.Name, err)
++	// }
++
++	// Wait for pod is unschedulable.
++	// glog.Infof("Waiting for pod is unschedulable")
++	// if err := waitForPodUnschedulable(config.client, test.pod); err != nil {
++	// t.Errorf("Failed as Pod %s was not unschedulable: %v", test.pod.Name, err)
++	// }
++}
++
+ func TestPVAffinityConflict(t *testing.T) {
+ 	features := map[string]bool{
+ 		"VolumeScheduling":       true,
