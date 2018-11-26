@@ -1,0 +1,70 @@
+From 6e25351f35f7f58bafea8fcca2482bb80565affd Mon Sep 17 00:00:00 2001
+From: Yecheng Fu <fuyecheng@qiniu.com>
+Date: Mon, 19 Nov 2018 22:00:43 +0800
+Subject: [PATCH] Clear pod binding cache before finding.
+
+---
+ .../volume/persistentvolume/scheduler_binder.go   |  3 +++
+ .../persistentvolume/scheduler_binder_cache.go    | 15 +++++++++++++++
+ .../persistentvolume/scheduler_binder_test.go     |  2 +-
+ 3 files changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/pkg/controller/volume/persistentvolume/scheduler_binder.go b/pkg/controller/volume/persistentvolume/scheduler_binder.go
+index 85fd71cf4ebec..95bab1a3bbe5c 100644
+--- a/pkg/controller/volume/persistentvolume/scheduler_binder.go
++++ b/pkg/controller/volume/persistentvolume/scheduler_binder.go
+@@ -143,6 +143,9 @@ func (b *volumeBinder) GetBindingsCache() PodBindingCache {
+ func (b *volumeBinder) FindPodVolumes(pod *v1.Pod, node *v1.Node) (unboundVolumesSatisfied, boundVolumesSatisfied bool, err error) {
+ 	podName := getPodName(pod)
+ 
++	// Pod binding cache may be out of date, clear for the given pod and node first.
++	b.podBindingCache.ClearBindings(pod, node.Name)
++
+ 	// Warning: Below log needs high verbosity as it can be printed several times (#60933).
+ 	klog.V(5).Infof("FindPodVolumes for pod %q, node %q", podName, node.Name)
+ 
+diff --git a/pkg/controller/volume/persistentvolume/scheduler_binder_cache.go b/pkg/controller/volume/persistentvolume/scheduler_binder_cache.go
+index b95538304ad97..c50d7f0670198 100644
+--- a/pkg/controller/volume/persistentvolume/scheduler_binder_cache.go
++++ b/pkg/controller/volume/persistentvolume/scheduler_binder_cache.go
+@@ -35,6 +35,9 @@ type PodBindingCache interface {
+ 	// means that no binding operations are needed.
+ 	GetBindings(pod *v1.Pod, node string) []*bindingInfo
+ 
++	// ClearBindings will clear the cached bindings for the given pod and node.
++	ClearBindings(pod *v1.Pod, node string)
++
+ 	// UpdateProvisionedPVCs will update the cache with the given provisioning decisions
+ 	// for the pod and node.
+ 	UpdateProvisionedPVCs(pod *v1.Pod, node string, provisionings []*v1.PersistentVolumeClaim)
+@@ -106,6 +109,18 @@ func (c *podBindingCache) UpdateBindings(pod *v1.Pod, node string, bindings []*b
+ 	decisions[node] = decision
+ }
+ 
++func (c *podBindingCache) ClearBindings(pod *v1.Pod, node string) {
++	c.rwMutex.Lock()
++	defer c.rwMutex.Unlock()
++
++	podName := getPodName(pod)
++	decisions, ok := c.bindingDecisions[podName]
++	if !ok {
++		return
++	}
++	delete(decisions, node)
++}
++
+ func (c *podBindingCache) GetBindings(pod *v1.Pod, node string) []*bindingInfo {
+ 	c.rwMutex.RLock()
+ 	defer c.rwMutex.RUnlock()
+diff --git a/pkg/controller/volume/persistentvolume/scheduler_binder_test.go b/pkg/controller/volume/persistentvolume/scheduler_binder_test.go
+index 1e7af815154b3..621e6dd666efd 100644
+--- a/pkg/controller/volume/persistentvolume/scheduler_binder_test.go
++++ b/pkg/controller/volume/persistentvolume/scheduler_binder_test.go
+@@ -1478,6 +1478,6 @@ func TestFindAssumeVolumes(t *testing.T) {
+ 		if !unboundSatisfied {
+ 			t.Errorf("Test failed: couldn't find PVs for all PVCs")
+ 		}
+-		testEnv.validatePodCache(t, "after-assume", testNode.Name, pod, expectedBindings, []*v1.PersistentVolumeClaim{})
++		testEnv.validatePodCache(t, "after-assume", testNode.Name, pod, expectedBindings, nil)
+ 	}
+ }

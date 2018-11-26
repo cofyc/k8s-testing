@@ -1,0 +1,187 @@
+
+I1120 17:43:08.625068    2717 volume_binding_test.go:740] Running test one immediate pv prebound, one wait provisioned
+I1120 17:43:08.629738    2717 pv_controller_base.go:171] enqueued "pv-i-prebound" for sync
+I1120 17:43:08.629771    2717 pv_controller_base.go:299] volumeWorker[pv-i-prebound]
+I1120 17:43:08.629781    2717 pv_controller_base.go:507] storeObjectUpdate: adding volume "pv-i-prebound", version 255
+I1120 17:43:08.629795    2717 pv_controller.go:515] synchronizing PersistentVolume[pv-i-prebound]: phase: Pending, bound to: "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound (uid: )", boundByController: false
+I1120 17:43:08.629799    2717 pv_controller.go:532] synchronizing PersistentVolume[pv-i-prebound]: volume is pre-bound to claim volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound
+I1120 17:43:08.629802    2717 pv_controller.go:803] updating PersistentVolume[pv-i-prebound]: set phase Available
+I1120 17:43:08.631174    2717 pv_controller_base.go:171] enqueued "pv-i-prebound" for sync
+I1120 17:43:08.631208    2717 pv_controller_base.go:171] enqueued "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound" for sync
+I1120 17:43:08.631219    2717 pv_controller_base.go:357] claimWorker[volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound]
+I1120 17:43:08.631251    2717 pv_controller_base.go:535] storeObjectUpdate updating volume "pv-i-prebound" with version 256
+I1120 17:43:08.631285    2717 pv_controller.go:824] volume "pv-i-prebound" entered phase "Available"
+I1120 17:43:08.631298    2717 pv_controller_base.go:299] volumeWorker[pv-i-prebound]
+I1120 17:43:08.631304    2717 pv_controller_base.go:535] storeObjectUpdate updating volume "pv-i-prebound" with version 256
+I1120 17:43:08.631326    2717 pv_controller.go:515] synchronizing PersistentVolume[pv-i-prebound]: phase: Available, bound to: "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound (uid: )", boundByController: false
+I1120 17:43:08.631349    2717 pv_controller.go:532] synchronizing PersistentVolume[pv-i-prebound]: volume is pre-bound to claim volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound
+I1120 17:43:08.631354    2717 pv_controller.go:803] updating PersistentVolume[pv-i-prebound]: set phase Available
+I1120 17:43:08.631358    2717 pv_controller.go:806] updating PersistentVolume[pv-i-prebound]: phase Available already set
+I1120 17:43:08.631262    2717 pv_controller_base.go:507] storeObjectUpdate: adding claim "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound", version 257
+I1120 17:43:08.631393    2717 pv_controller.go:241] synchronizing PersistentVolumeClaim[volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound]: phase: Pending, bound to: "", bindCompleted: false, boundByController: false
+I1120 17:43:08.631411    2717 pv_controller.go:361] synchronizing unbound PersistentVolumeClaim[volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound]: volume "pv-i-prebound" found: phase: Available, bound to: "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound (uid: )", boundByController: false
+I1120 17:43:08.631420    2717 pv_controller.go:993] binding volume "pv-i-prebound" to claim "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound"
+I1120 17:43:08.631425    2717 pv_controller.go:855] updating PersistentVolume[pv-i-prebound]: binding to "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound"
+I1120 17:43:08.631436    2717 pv_controller.go:874] claim "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound" bound to volume "pv-i-prebound"
+I1120 17:43:08.632649    2717 pv_controller_base.go:535] storeObjectUpdate updating volume "pv-i-prebound" with version 258
+I1120 17:43:08.632682    2717 pv_controller.go:887] updating PersistentVolume[pv-i-prebound]: bound to "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound"
+I1120 17:43:08.632688    2717 pv_controller.go:803] updating PersistentVolume[pv-i-prebound]: set phase Bound
+I1120 17:43:08.632918    2717 pv_controller_base.go:171] enqueued "pv-i-prebound" for sync
+I1120 17:43:08.632936    2717 pv_controller_base.go:299] volumeWorker[pv-i-prebound]
+I1120 17:43:08.633077    2717 pv_controller_base.go:535] storeObjectUpdate updating volume "pv-i-prebound" with version 258
+I1120 17:43:08.633093    2717 pv_controller.go:515] synchronizing PersistentVolume[pv-i-prebound]: phase: Available, bound to: "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound (uid: b000d433-eca8-11e8-b9cb-000c299a5e15)", boundByController: false
+I1120 17:43:08.633097    2717 pv_controller.go:540] synchronizing PersistentVolume[pv-i-prebound]: volume is bound to claim volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound
+I1120 17:43:08.633104    2717 pv_controller.go:581] synchronizing PersistentVolume[pv-i-prebound]: claim volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound found: phase: Pending, bound to: "", bindCompleted: false, boundByController: false
+I1120 17:43:08.633110    2717 pv_controller.go:632] synchronizing PersistentVolume[pv-i-prebound]: volume was bound and got unbound (by user?), waiting for syncClaim to fix it
+
+I1120 17:43:08.633506    2717 pv_controller_base.go:171] enqueued "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-canprovision" for sync
+
+I1120 17:43:08.633928    2717 pv_controller_base.go:535] storeObjectUpdate updating volume "pv-i-prebound" with version 260
+I1120 17:43:08.633961    2717 pv_controller.go:824] volume "pv-i-prebound" entered phase "Bound"
+I1120 17:43:08.633969    2717 pv_controller.go:931] updating PersistentVolumeClaim[volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound]: binding to "pv-i-prebound"
+I1120 17:43:08.633976    2717 pv_controller.go:963] volume "pv-i-prebound" bound to claim "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound"
+I1120 17:43:08.634117    2717 pv_controller_base.go:171] enqueued "pv-i-prebound" for sync
+I1120 17:43:08.634132    2717 pv_controller_base.go:299] volumeWorker[pv-i-prebound]
+I1120 17:43:08.634138    2717 pv_controller_base.go:535] storeObjectUpdate updating volume "pv-i-prebound" with version 260
+
+# cofyc: About to try and schedule pod pod-i-pv-prebound-w-provisioned
+I1120 17:43:08.634164    2717 factory.go:1338] About to try and schedule pod volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pod-i-pv-prebound-w-provisioned
+I1120 17:43:08.634193    2717 scheduler.go:508] Attempting to schedule pod: volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pod-i-pv-prebound-w-provisioned
+
+I1120 17:43:08.634176    2717 pv_controller.go:515] synchronizing PersistentVolume[pv-i-prebound]: phase: Bound, bound to: "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound (uid: b000d433-eca8-11e8-b9cb-000c299a5e15)", boundByController: false
+I1120 17:43:08.634298    2717 pv_controller.go:540] synchronizing PersistentVolume[pv-i-prebound]: volume is bound to claim volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound
+I1120 17:43:08.634306    2717 pv_controller.go:581] synchronizing PersistentVolume[pv-i-prebound]: claim volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound found: phase: Pending, bound to: "", bindCompleted: false, boundByController: false
+I1120 17:43:08.634312    2717 pv_controller.go:632] synchronizing PersistentVolume[pv-i-prebound]: volume was bound and got unbound (by user?), waiting for syncClaim to fix it
+
+# cofyc: FindPodVolumes
+
+I1120 17:43:08.634275    2717 scheduler_binder.go:150] FindPodVolumes for pod "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pod-i-pv-prebound-w-provisioned", node "node-1"
+I1120 17:43:08.634324    2717 scheduler_binder.go:469] PVC "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound" is not bound
+I1120 17:43:08.634330    2717 scheduler_binder.go:469] PVC "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-canprovision" is not bound
+
+# cofyc: Error scheduling
+
+E1120 17:43:08.634396    2717 factory.go:1465] Error scheduling volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pod-i-pv-prebound-w-provisioned: pod has unbound immediate PersistentVolumeClaims; retrying
+I1120 17:43:08.634445    2717 factory.go:1558] Updating pod condition for volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pod-i-pv-prebound-w-provisioned to (PodScheduled==False)
+I1120 17:43:08.635478    2717 pv_controller_base.go:535] storeObjectUpdate updating claim "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound" with version 262
+I1120 17:43:08.635517    2717 pv_controller.go:974] updating PersistentVolumeClaim[volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound]: bound to "pv-i-prebound"
+I1120 17:43:08.635519    2717 pv_controller_base.go:171] enqueued "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound" for sync
+I1120 17:43:08.635526    2717 pv_controller.go:709] updating PersistentVolumeClaim[volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound] status: set phase Bound
+E1120 17:43:08.636074    2717 scheduler.go:529] error selecting node for pod: pod has unbound immediate PersistentVolumeClaims
+I1120 17:43:08.636135    2717 factory.go:1338] About to try and schedule pod volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pod-i-pv-prebound-w-provisioned
+I1120 17:43:08.636163    2717 scheduler.go:508] Attempting to schedule pod: volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pod-i-pv-prebound-w-provisioned
+
+I1120 17:43:08.636330    2717 scheduler_binder.go:150] FindPodVolumes for pod "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pod-i-pv-prebound-w-provisioned", node "node-1"
+I1120 17:43:08.636360    2717 scheduler_binder.go:461] PVC "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound" is fully bound to PV "pv-i-prebound"
+
+I1120 17:43:08.636368    2717 scheduler_binder.go:469] PVC "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-canprovision" is not bound
+
+I1120 17:43:08.636414    2717 scheduler_binder.go:532] PersistentVolume "pv-i-prebound", Node "node-1" matches for Pod "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pod-i-pv-prebound-w-provisioned"
+I1120 17:43:08.636438    2717 scheduler_binder.go:535] All bound volumes for Pod "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pod-i-pv-prebound-w-provisioned" match with Node "node-1"
+
+I1120 17:43:08.636449    2717 scheduler_binder.go:567] No matching volumes for Pod "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pod-i-pv-prebound-w-provisioned", PVC "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-canprovision" on node "node-1"
+
+I1120 17:43:08.636482    2717 scheduler_binder.go:627] Provisioning for claims of pod "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pod-i-pv-prebound-w-provisioned" that has no matching volumes on node "node-1" ...
+I1120 17:43:08.636533    2717 scheduler_binder.go:210] AssumePodVolumes for pod "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pod-i-pv-prebound-w-provisioned", node "node-1"
+I1120 17:43:08.636558    2717 scheduler_binder.go:461] PVC "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound" is fully bound to PV "pv-i-prebound"
+I1120 17:43:08.636565    2717 scheduler_binder.go:469] PVC "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-canprovision" is not bound
+I1120 17:43:08.636574    2717 scheduler_assume_cache.go:305] Assumed v1.PersistentVolumeClaim "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-canprovision", version 259
+I1120 17:43:08.636648    2717 factory.go:1338] About to try and schedule pod volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pod-i-pv-prebound-w-provisioned
+I1120 17:43:08.636656    2717 scheduler.go:508] Attempting to schedule pod: volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pod-i-pv-prebound-w-provisioned
+I1120 17:43:08.636719    2717 scheduler_binder.go:150] FindPodVolumes for pod "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pod-i-pv-prebound-w-provisioned", node "node-1"
+I1120 17:43:08.636771    2717 scheduler_binder.go:461] PVC "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound" is fully bound to PV "pv-i-prebound"
+I1120 17:43:08.636778    2717 scheduler_binder.go:469] PVC "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-canprovision" is not bound
+
+# cofyc: Error scheduling
+
+E1120 17:43:08.636796    2717 factory.go:1465] Error scheduling volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pod-i-pv-prebound-w-provisioned: pod has unbound immediate PersistentVolumeClaims; retrying
+
+# cofyc: Trying to bind volumes for pod
+I1120 17:43:08.636800    2717 scheduler.go:393] Trying to bind volumes for pod "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pod-i-pv-prebound-w-provisioned"
+
+I1120 17:43:08.636808    2717 scheduler_binder.go:286] BindPodVolumes for pod "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pod-i-pv-prebound-w-provisioned", node "node-1"
+
+## cofyc: Failed to bind volumes for pod (failed to get cached bindings)
+
+I1120 17:43:08.636824    2717 scheduler.go:396] Failed to bind volumes for pod "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pod-i-pv-prebound-w-provisioned": failed to get cached bindings for pod "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pod-i-pv-prebound-w-provisioned"
+
+# cofyc: Error scheduling
+
+E1120 17:43:08.636849    2717 factory.go:1465] Error scheduling volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pod-i-pv-prebound-w-provisioned: failed to get cached bindings for pod "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pod-i-pv-prebound-w-provisioned"; retrying
+
+I1120 17:43:08.636851    2717 factory.go:1558] Updating pod condition for volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pod-i-pv-prebound-w-provisioned to (PodScheduled==False)
+I1120 17:43:08.636867    2717 factory.go:1558] Updating pod condition for volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pod-i-pv-prebound-w-provisioned to (PodScheduled==False)
+I1120 17:43:08.637067    2717 pv_controller_base.go:535] storeObjectUpdate updating claim "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound" with version 265
+I1120 17:43:08.637113    2717 pv_controller.go:768] claim "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound" entered phase "Bound"
+I1120 17:43:08.637126    2717 pv_controller.go:1019] volume "pv-i-prebound" bound to claim "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound"
+I1120 17:43:08.637139    2717 pv_controller.go:1020] volume "pv-i-prebound" status after binding: phase: Bound, bound to: "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound (uid: b000d433-eca8-11e8-b9cb-000c299a5e15)", boundByController: false
+I1120 17:43:08.637146    2717 pv_controller.go:1021] claim "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound" status after binding: phase: Bound, bound to: "pv-i-prebound", bindCompleted: true, boundByController: true
+
+I1120 17:43:08.637158    2717 pv_controller_base.go:357] claimWorker[volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-canprovision]
+I1120 17:43:08.637166    2717 pv_controller_base.go:507] storeObjectUpdate: adding claim "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-canprovision", version 259
+I1120 17:43:08.637172    2717 pv_controller.go:241] synchronizing PersistentVolumeClaim[volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-canprovision]: phase: Pending, bound to: "", bindCompleted: false, boundByController: false
+
+I1120 17:43:08.637188    2717 pv_controller.go:337] synchronizing unbound PersistentVolumeClaim[volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-canprovision]: no volume found
+I1120 17:43:08.637228    2717 pv_controller.go:709] updating PersistentVolumeClaim[volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-canprovision] status: set phase Pending
+I1120 17:43:08.637251    2717 event.go:221] Event(v1.ObjectReference{Kind:"PersistentVolumeClaim", Namespace:"volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15", Name:"pvc-canprovision", UID:"b0011b84-eca8-11e8-b9cb-000c299a5e15", APIVersion:"v1", ResourceVersion:"259", FieldPath:""}): type: 'Normal' reason: 'WaitForFirstConsumer' waiting for first consumer to be created before binding
+I1120 17:43:08.637587    2717 pv_controller_base.go:171] enqueued "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound" for sync
+I1120 17:43:08.637597    2717 pv_controller.go:754] updating PersistentVolumeClaim[volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-canprovision] status: phase Pending already set
+
+I1120 17:43:08.637646    2717 pv_controller_base.go:357] claimWorker[volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound]
+I1120 17:43:08.637657    2717 pv_controller_base.go:535] storeObjectUpdate updating claim "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound" with version 265
+I1120 17:43:08.637694    2717 pv_controller.go:241] synchronizing PersistentVolumeClaim[volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound]: phase: Bound, bound to: "pv-i-prebound", bindCompleted: true, boundByController: true
+I1120 17:43:08.637732    2717 pv_controller.go:475] synchronizing bound PersistentVolumeClaim[volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound]: volume "pv-i-prebound" found: phase: Bound, bound to: "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound (uid: b000d433-eca8-11e8-b9cb-000c299a5e15)", boundByController: false
+I1120 17:43:08.637741    2717 pv_controller.go:492] synchronizing bound PersistentVolumeClaim[volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound]: claim is already correctly bound
+I1120 17:43:08.637747    2717 pv_controller.go:993] binding volume "pv-i-prebound" to claim "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound"
+I1120 17:43:08.637754    2717 pv_controller.go:855] updating PersistentVolume[pv-i-prebound]: binding to "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound"
+I1120 17:43:08.637780    2717 pv_controller.go:867] updating PersistentVolume[pv-i-prebound]: already bound to "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound"
+I1120 17:43:08.637824    2717 pv_controller.go:803] updating PersistentVolume[pv-i-prebound]: set phase Bound
+I1120 17:43:08.637832    2717 pv_controller.go:806] updating PersistentVolume[pv-i-prebound]: phase Bound already set
+I1120 17:43:08.637849    2717 pv_controller.go:931] updating PersistentVolumeClaim[volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound]: binding to "pv-i-prebound"
+
+E1120 17:43:08.636860    2717 scheduler.go:529] error selecting node for pod: pod has unbound immediate PersistentVolumeClaims
+
+I1120 17:43:08.637866    2717 pv_controller.go:978] updating PersistentVolumeClaim[volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound]: already bound to "pv-i-prebound"
+I1120 17:43:08.637874    2717 pv_controller.go:709] updating PersistentVolumeClaim[volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound] status: set phase Bound
+I1120 17:43:08.637886    2717 pv_controller.go:754] updating PersistentVolumeClaim[volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound] status: phase Bound already set
+I1120 17:43:08.637892    2717 pv_controller.go:1019] volume "pv-i-prebound" bound to claim "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound"
+I1120 17:43:08.637904    2717 pv_controller.go:1020] volume "pv-i-prebound" status after binding: phase: Bound, bound to: "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound (uid: b000d433-eca8-11e8-b9cb-000c299a5e15)", boundByController: false
+I1120 17:43:08.637917    2717 pv_controller.go:1021] claim "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound" status after binding: phase: Bound, bound to: "pv-i-prebound", bindCompleted: true, boundByController: true
+
+# cofyc: About to try and schedule
+I1120 17:43:08.638349    2717 factory.go:1338] About to try and schedule pod volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pod-i-pv-prebound-w-provisioned
+I1120 17:43:08.638383    2717 scheduler.go:508] Attempting to schedule pod: volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pod-i-pv-prebound-w-provisioned
+
+I1120 17:43:08.638593    2717 scheduler_binder.go:150] FindPodVolumes for pod "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pod-i-pv-prebound-w-provisioned", node "node-1"
+
+I1120 17:43:08.638625    2717 scheduler_binder.go:461] PVC "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-i-pv-prebound" is fully bound to PV "pv-i-prebound"
+
+I1120 17:43:08.638633    2717 scheduler_binder.go:469] PVC "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-canprovision" is not bound
+
+E1120 17:43:08.638694    2717 factory.go:1465] Error scheduling volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pod-i-pv-prebound-w-provisioned: pod has unbound immediate PersistentVolumeClaims; retrying
+I1120 17:43:08.638794    2717 factory.go:1558] Updating pod condition for volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pod-i-pv-prebound-w-provisioned to (PodScheduled==False)
+E1120 17:43:08.638828    2717 scheduler.go:529] error selecting node for pod: pod has unbound immediate PersistentVolumeClaims
+E1120 17:43:08.639340    2717 scheduler.go:566] error binding volumes: failed to get cached bindings for pod "volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pod-i-pv-prebound-w-provisioned"
+
+# cofyc: failed to get cached bindings
+
+
+
+
+
+
+
+
+
+
+
+--- FAIL: TestVolumeProvision (38.86s)
+    volume_binding_test.go:801: Failed to schedule Pod "pod-i-pv-prebound-w-provisioned": timed out waiting for the condition
+    volume_binding_test.go:1151: PVC volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-canprovision phase not Bound, got Pending
+    volume_binding_test.go:1157: Provisoning annotaion on PVC volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-canprovision not bahaviors as expected: PVC volume-schedulingacd8ca84-eca8-11e8-b9cb-000c299a5e15/pvc-canprovision expected to be provisioned, but no selected-node annotation found
+FAIL
+FAIL	k8s.io/kubernetes/test/integration/scheduler	38.909s
+Makefile:184: recipe for target 'test' failed
++++ [1120 17:43:38] Cleaning up etcd
++++ [1120 17:43:38] Integration test cleanup complete
+Makefile:203: recipe for target 'test-integration' failed

@@ -53,7 +53,8 @@ fi
 export LOG_LEVEL=4
 export ALLOW_PRIVILEGED=true
 # export FEATURE_GATES="BlockVolume=true"
-export FEATURE_GATES="PersistentLocalVolumes=true,VolumeScheduling=true,MountPropagation=true"
+#export FEATURE_GATES="PersistentLocalVolumes=true,VolumeScheduling=true,MountPropagation=true"
+export FEATURE_GATES="CSIPersistentVolume=true,MountPropagation=true,VolumeSnapshotDataSource=true,KubeletPluginsWatcher=true,CSINodeInfo=true,CSIDriverRegistry=true"
 # export FEATURE_GATES="VolumeScheduling=true,EnableEquivalenceClassCache=true"
 export KEEP_TERMINATED_POD_VOLUMES=false
 ./hack/local-up-cluster.sh -o ./_output/dockerized/bin/linux/amd64

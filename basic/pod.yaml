@@ -1,0 +1,13 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: test-pod-1
+spec:
+  containers:
+  - name: test-pod-1
+    image: alpine
+    command:
+    - "/bin/sh"
+    args:
+    - "-c"
+    - "trap exit EXIT; while true; do sleep 1; done"

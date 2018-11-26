@@ -1,0 +1,16 @@
+diff --git a/pkg/scheduler/factory/factory.go b/pkg/scheduler/factory/factory.go
+index b355fb2..53f5de9 100644
+--- a/pkg/scheduler/factory/factory.go
++++ b/pkg/scheduler/factory/factory.go
+@@ -522,6 +522,11 @@ func (c *configFactory) onPvUpdate(old, new interface{}) {
+ 	// parties, then scheduler will add pod back to unschedulable queue. We
+ 	// need to move pods to active queue on PV update for this scenario.
+ 	c.podQueue.MoveAllToActiveQueue()
++	// check pv cache in scheduler binder
++	oldPV := old.(*v1.PersistentVolume)
++	newPV := new.(*v1.PersistentVolume)
++	cachedPV, _ := c.volumeBinder.Binder.GetPVAssumeCache().GetPV(newPV.Name)
++	klog.Infof("newPV ResourceVersion: %v, oldPV ResourceVersion: %v, cachedPV: %v", newPV.ResourceVersion, oldPV.ResourceVersion, cachedPV.ResourceVersion)
+ }
+ 
+ func (c *configFactory) invalidatePredicatesForPvUpdate(oldPV, newPV *v1.PersistentVolume) {
