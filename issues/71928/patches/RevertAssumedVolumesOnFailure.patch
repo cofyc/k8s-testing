@@ -1,0 +1,76 @@
+diff --git a/pkg/controller/volume/persistentvolume/scheduler_binder.go b/pkg/controller/volume/persistentvolume/scheduler_binder.go
+index 85fd71c..5fbd249 100644
+--- a/pkg/controller/volume/persistentvolume/scheduler_binder.go
++++ b/pkg/controller/volume/persistentvolume/scheduler_binder.go
+@@ -82,6 +82,9 @@ type SchedulerVolumeBinder interface {
+ 	// This function is called serially.
+ 	AssumePodVolumes(assumedPod *v1.Pod, nodeName string) (allFullyBound bool, err error)
+ 
++	// ForgetPodVolumes unassumes pod volumes.
++	ForgetPodVolumes(assumedPod *v1.Pod, nodeName string)
++
+ 	// BindPodVolumes will:
+ 	// 1. Initiate the volume binding by making the API call to prebind the PV
+ 	// to its matching PVC.
+@@ -275,6 +278,21 @@ func (b *volumeBinder) AssumePodVolumes(assumedPod *v1.Pod, nodeName string) (al
+ 	return
+ }
+ 
++func (b *volumeBinder) ForgetPodVolumes(assumedPod *v1.Pod, nodeName string) {
++	podName := getPodName(assumedPod)
++	klog.V(4).Infof("ForgetPodVolumes for pod %q, node %q", podName, nodeName)
++
++	claimsToBind := b.podBindingCache.GetBindings(assumedPod, nodeName)
++	claimsToProvision := b.podBindingCache.GetProvisionedPVCs(assumedPod, nodeName)
++	for _, bindingInfo := range claimsToBind {
++		b.pvCache.Restore(bindingInfo.pv.Name)
++		b.pvcCache.Restore(bindingInfo.pvc.Name)
++	}
++	for _, pvc := range claimsToProvision {
++		b.pvcCache.Restore(getPVCName(pvc))
++	}
++}
++
+ // BindPodVolumes gets the cached bindings and PVCs to provision in podBindingCache,
+ // makes the API update for those PVs/PVCs, and waits for the PVCs to be completely bound
+ // by the PV controller.
+diff --git a/pkg/controller/volume/persistentvolume/scheduler_binder_fake.go b/pkg/controller/volume/persistentvolume/scheduler_binder_fake.go
+index 46e8f20..0ba1601 100644
+--- a/pkg/controller/volume/persistentvolume/scheduler_binder_fake.go
++++ b/pkg/controller/volume/persistentvolume/scheduler_binder_fake.go
+@@ -38,6 +38,7 @@ func NewFakeVolumeBinder(config *FakeVolumeBinderConfig) *FakeVolumeBinder {
+ type FakeVolumeBinder struct {
+ 	config       *FakeVolumeBinderConfig
+ 	AssumeCalled bool
++	ForgetCalled bool
+ 	BindCalled   bool
+ }
+ 
+@@ -50,6 +51,11 @@ func (b *FakeVolumeBinder) AssumePodVolumes(assumedPod *v1.Pod, nodeName string)
+ 	return b.config.AllBound, b.config.AssumeErr
+ }
+ 
++func (b *FakeVolumeBinder) ForgetPodVolumes(assumedPod *v1.Pod, nodeName string) {
++	b.ForgetCalled = true
++	return
++}
++
+ func (b *FakeVolumeBinder) BindPodVolumes(assumedPod *v1.Pod) error {
+ 	b.BindCalled = true
+ 	return b.config.BindErr
+diff --git a/pkg/scheduler/scheduler.go b/pkg/scheduler/scheduler.go
+index 8d63a99..0eeea8c 100644
+--- a/pkg/scheduler/scheduler.go
++++ b/pkg/scheduler/scheduler.go
+@@ -429,6 +429,11 @@ func (sched *Scheduler) assume(assumed *v1.Pod, host string) error {
+ 	if err := sched.config.SchedulerCache.AssumePod(assumed); err != nil {
+ 		klog.Errorf("scheduler cache AssumePod failed: %v", err)
+ 
++		if utilfeature.DefaultFeatureGate.Enabled(features.VolumeScheduling) {
++			// If failed to assume pod, we must revert assumed pod volumes before retrying.
++			sched.config.VolumeBinder.Binder.ForgetPodVolumes(assumed, host)
++		}
++
+ 		// This is most probably result of a BUG in retrying logic.
+ 		// We report an error here so that pod scheduling can be retried.
+ 		// This relies on the fact that Error will check if the pod has been bound

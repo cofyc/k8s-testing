@@ -1,0 +1,23 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: test-pod
+  namespace: default
+  labels:
+    ok: b
+spec:
+  containers:
+  - name: test-pod
+    image: busybox:1.24
+    command:
+    - "/bin/sh"
+    args:
+    - "-c"
+    - "while true; do sleep 1; done"
+    volumeMounts:
+    - name: rbd
+      mountPath: "/mnt"
+  volumes:
+  - name: rbd
+    persistentVolumeClaim:
+      claimName: claim1

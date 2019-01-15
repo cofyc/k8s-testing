@@ -1,6 +1,8 @@
 kind: Pod
 apiVersion: v1
 metadata:
+  labels:
+    ok: test2
   name: my-csi-app
 spec:
   containers:

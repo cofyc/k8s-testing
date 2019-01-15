@@ -3,5 +3,8 @@ kind: StorageClass
 metadata:
   name: csi-hostpath-sc
 provisioner: csi-hostpath
+# provisioner: csi-hostpath-wrong
 reclaimPolicy: Delete
-volumeBindingMode: Immediate
+volumeBindingMode: WaitForFirstConsumer
+# parameters:
+  # "cofyc-debug": "true"

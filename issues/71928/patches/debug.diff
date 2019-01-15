@@ -1,0 +1,107 @@
+diff --git a/pkg/controller/volume/persistentvolume/scheduler_binder.go b/pkg/controller/volume/persistentvolume/scheduler_binder.go
+index 85fd71c..d1c7252 100644
+--- a/pkg/controller/volume/persistentvolume/scheduler_binder.go
++++ b/pkg/controller/volume/persistentvolume/scheduler_binder.go
+@@ -82,6 +82,9 @@ type SchedulerVolumeBinder interface {
+ 	// This function is called serially.
+ 	AssumePodVolumes(assumedPod *v1.Pod, nodeName string) (allFullyBound bool, err error)
+ 
++	// ForgetPodVolumes unassumes pod volumes.
++	ForgetPodVolumes(assumedPod *v1.Pod, nodeName string)
++
+ 	// BindPodVolumes will:
+ 	// 1. Initiate the volume binding by making the API call to prebind the PV
+ 	// to its matching PVC.
+@@ -275,6 +278,21 @@ func (b *volumeBinder) AssumePodVolumes(assumedPod *v1.Pod, nodeName string) (al
+ 	return
+ }
+ 
++func (b *volumeBinder) ForgetPodVolumes(assumedPod *v1.Pod, nodeName string) {
++	podName := getPodName(assumedPod)
++	klog.V(4).Infof("ForgetPodVolumes for pod %q, node %q", podName, nodeName)
++
++	claimsToBind := b.podBindingCache.GetBindings(assumedPod, nodeName)
++	claimsToProvision := b.podBindingCache.GetProvisionedPVCs(assumedPod, nodeName)
++	for _, bindingInfo := range claimsToBind {
++		b.pvCache.Restore(bindingInfo.pv.Name)
++		b.pvcCache.Restore(bindingInfo.pvc.Name)
++	}
++	for _, pvc := range claimsToProvision {
++		b.pvcCache.Restore(getPVCName(pvc))
++	}
++}
++
+ // BindPodVolumes gets the cached bindings and PVCs to provision in podBindingCache,
+ // makes the API update for those PVs/PVCs, and waits for the PVCs to be completely bound
+ // by the PV controller.
+@@ -500,6 +518,7 @@ func (b *volumeBinder) getPodVolumes(pod *v1.Pod) (boundClaims []*v1.PersistentV
+ 			if err != nil {
+ 				return nil, nil, nil, err
+ 			}
++			klog.Infof("cofyc-debug: delayBinding: %v, pvc: %+v", delayBinding, pvc)
+ 			// Prebound PVCs are treated as unbound immediate binding
+ 			if delayBinding && pvc.Spec.VolumeName == "" {
+ 				// Scheduler path
+diff --git a/pkg/controller/volume/persistentvolume/scheduler_binder_fake.go b/pkg/controller/volume/persistentvolume/scheduler_binder_fake.go
+index 46e8f20..3739543 100644
+--- a/pkg/controller/volume/persistentvolume/scheduler_binder_fake.go
++++ b/pkg/controller/volume/persistentvolume/scheduler_binder_fake.go
+@@ -50,6 +50,10 @@ func (b *FakeVolumeBinder) AssumePodVolumes(assumedPod *v1.Pod, nodeName string)
+ 	return b.config.AllBound, b.config.AssumeErr
+ }
+ 
++func (b *FakeVolumeBinder) ForgetPodVolumes(assumedPod *v1.Pod, nodeName string) {
++	return
++}
++
+ func (b *FakeVolumeBinder) BindPodVolumes(assumedPod *v1.Pod) error {
+ 	b.BindCalled = true
+ 	return b.config.BindErr
+diff --git a/pkg/scheduler/scheduler.go b/pkg/scheduler/scheduler.go
+index 0237036..fad4dba 100644
+--- a/pkg/scheduler/scheduler.go
++++ b/pkg/scheduler/scheduler.go
+@@ -436,6 +436,11 @@ func (sched *Scheduler) assume(assumed *v1.Pod, host string) error {
+ 	if err := sched.config.SchedulerCache.AssumePod(assumed); err != nil {
+ 		klog.Errorf("scheduler cache AssumePod failed: %v", err)
+ 
++		if utilfeature.DefaultFeatureGate.Enabled(features.VolumeScheduling) {
++			// If failed to assume pod, we must revert assumed pod volumes before retrying.
++			sched.config.VolumeBinder.Binder.ForgetPodVolumes(assumed, host)
++		}
++
+ 		// This is most probably result of a BUG in retrying logic.
+ 		// We report an error here so that pod scheduling can be retried.
+ 		// This relies on the fact that Error will check if the pod has been bound
+diff --git a/pkg/volume/rbd/rbd.go b/pkg/volume/rbd/rbd.go
+index d919742..65fb2d0 100644
+--- a/pkg/volume/rbd/rbd.go
++++ b/pkg/volume/rbd/rbd.go
+@@ -608,6 +608,27 @@ func (r *rbdVolumeProvisioner) Provision(selectedNode *v1.Node, allowedTopologie
+ 	imageFormat := rbdImageFormat2
+ 	fstype := ""
+ 
++	if _, ok := r.options.Parameters["cofyc-debug"]; ok {
++		return nil, fmt.Errorf("cofyc-debug exists")
++	} else {
++		pv := new(v1.PersistentVolume)
++		metav1.SetMetaDataAnnotation(&pv.ObjectMeta, volutil.VolumeDynamicallyCreatedByKey, "rbd-dynamic-provisioner")
++		rbd := &v1.RBDPersistentVolumeSource{
++			RBDImage:     "test",
++			Keyring:      "/etc/ceph/keyring",
++			CephMonitors: []string{"139.162.73.37:6789"},
++			RBDPool:      "kube",
++			RadosUser:    "kube",
++		}
++		pv.Spec.PersistentVolumeSource.RBD = rbd
++		pv.Spec.PersistentVolumeReclaimPolicy = v1.PersistentVolumeReclaimDelete
++		pv.Spec.AccessModes = r.plugin.GetAccessModes()
++		pv.Spec.Capacity = v1.ResourceList{
++			v1.ResourceName(v1.ResourceStorage): resource.MustParse(fmt.Sprintf("%dMi", 1024)),
++		}
++		return pv, nil
++	}
++
+ 	for k, v := range r.options.Parameters {
+ 		switch dstrings.ToLower(k) {
+ 		case "monitors":

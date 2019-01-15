@@ -1,0 +1,131 @@
+diff --git a/pkg/controller/volume/persistentvolume/pv_controller.go b/pkg/controller/volume/persistentvolume/pv_controller.go
+index e50da0a..f7f0c82 100644
+--- a/pkg/controller/volume/persistentvolume/pv_controller.go
++++ b/pkg/controller/volume/persistentvolume/pv_controller.go
+@@ -285,19 +285,16 @@ func checkVolumeSatisfyClaim(volume *v1.PersistentVolume, claim *v1.PersistentVo
+ 	return nil
+ }
+ 
+-func (ctrl *PersistentVolumeController) shouldDelayBinding(claim *v1.PersistentVolumeClaim) (bool, error) {
+-	if !utilfeature.DefaultFeatureGate.Enabled(features.VolumeScheduling) {
+-		return false, nil
+-	}
+-
++func (ctrl *PersistentVolumeController) isDelayBindingScheduled(claim *v1.PersistentVolumeClaim) bool {
+ 	// When feature VolumeScheduling enabled,
+ 	// Scheduler signal to the PV controller to start dynamic
+ 	// provisioning by setting the "annSelectedNode" annotation
+ 	// in the PVC
+-	if _, ok := claim.Annotations[annSelectedNode]; ok {
+-		return false, nil
+-	}
++	_, ok := claim.Annotations[annSelectedNode]
++	return ok
++}
+ 
++func (ctrl *PersistentVolumeController) isDelayBindingMode(claim *v1.PersistentVolumeClaim) (bool, error) {
+ 	className := v1helper.GetPersistentVolumeClaimClass(claim)
+ 	if className == "" {
+ 		return false, nil
+@@ -315,6 +312,18 @@ func (ctrl *PersistentVolumeController) shouldDelayBinding(claim *v1.PersistentV
+ 	return *class.VolumeBindingMode == storage.VolumeBindingWaitForFirstConsumer, nil
+ }
+ 
++func (ctrl *PersistentVolumeController) shouldDelayBinding(claim *v1.PersistentVolumeClaim) (bool, error) {
++	if !utilfeature.DefaultFeatureGate.Enabled(features.VolumeScheduling) {
++		return false, nil
++	}
++
++	if ctrl.isDelayBindingScheduled(claim) {
++		return false, nil
++	}
++
++	return ctrl.isDelayBindingMode(claim)
++}
++
+ // syncUnboundClaim is the main controller method to decide what to do with an
+ // unbound claim.
+ func (ctrl *PersistentVolumeController) syncUnboundClaim(claim *v1.PersistentVolumeClaim) error {
+diff --git a/pkg/controller/volume/persistentvolume/scheduler_binder.go b/pkg/controller/volume/persistentvolume/scheduler_binder.go
+index 85fd71c..890406e 100644
+--- a/pkg/controller/volume/persistentvolume/scheduler_binder.go
++++ b/pkg/controller/volume/persistentvolume/scheduler_binder.go
+@@ -159,7 +159,7 @@ func (b *volumeBinder) FindPodVolumes(pod *v1.Pod, node *v1.Node) (unboundVolume
+ 
+ 	// The pod's volumes need to be processed in one call to avoid the race condition where
+ 	// volumes can get bound/provisioned in between calls.
+-	boundClaims, claimsToBind, unboundClaimsImmediate, err := b.getPodVolumes(pod)
++	boundClaims, claimsToBind, scheduledClaimsToBind, unboundClaimsImmediate, err := b.getPodVolumes(pod)
+ 	if err != nil {
+ 		return false, false, err
+ 	}
+@@ -193,6 +193,10 @@ func (b *volumeBinder) FindPodVolumes(pod *v1.Pod, node *v1.Node) (unboundVolume
+ 		}
+ 	}
+ 
++	if len(scheduledClaimsToBind) > 0 {
++		klog.Infof("cofyc-debug: scheduledClaimsToBind %v\n", scheduledClaimsToBind)
++	}
++
+ 	return unboundVolumesSatisfied, boundVolumesSatisfied, nil
+ }
+ 
+@@ -480,7 +484,7 @@ func (b *volumeBinder) arePodVolumesBound(pod *v1.Pod) bool {
+ 
+ // getPodVolumes returns a pod's PVCs separated into bound (including prebound), unbound with delayed binding,
+ // and unbound with immediate binding
+-func (b *volumeBinder) getPodVolumes(pod *v1.Pod) (boundClaims []*v1.PersistentVolumeClaim, unboundClaims []*bindingInfo, unboundClaimsImmediate []*v1.PersistentVolumeClaim, err error) {
++func (b *volumeBinder) getPodVolumes(pod *v1.Pod) (boundClaims []*v1.PersistentVolumeClaim, unboundClaims, unboundScheduledClaims []*bindingInfo, unboundClaimsImmediate []*v1.PersistentVolumeClaim, err error) {
+ 	boundClaims = []*v1.PersistentVolumeClaim{}
+ 	unboundClaimsImmediate = []*v1.PersistentVolumeClaim{}
+ 	unboundClaims = []*bindingInfo{}
+@@ -488,7 +492,7 @@ func (b *volumeBinder) getPodVolumes(pod *v1.Pod) (boundClaims []*v1.PersistentV
+ 	for _, vol := range pod.Spec.Volumes {
+ 		volumeBound, pvc, err := b.isVolumeBound(pod.Namespace, &vol)
+ 		if err != nil {
+-			return nil, nil, nil, err
++			return nil, nil, nil, nil, err
+ 		}
+ 		if pvc == nil {
+ 			continue
+@@ -496,21 +500,32 @@ func (b *volumeBinder) getPodVolumes(pod *v1.Pod) (boundClaims []*v1.PersistentV
+ 		if volumeBound {
+ 			boundClaims = append(boundClaims, pvc)
+ 		} else {
+-			delayBinding, err := b.ctrl.shouldDelayBinding(pvc)
++			delayBindingMode, err := b.ctrl.isDelayBindingMode(pvc)
+ 			if err != nil {
+-				return nil, nil, nil, err
++				return nil, nil, nil, nil, err
+ 			}
++			delayBindingScheduled := b.ctrl.isDelayBindingScheduled(pvc)
+ 			// Prebound PVCs are treated as unbound immediate binding
+-			if delayBinding && pvc.Spec.VolumeName == "" {
+-				// Scheduler path
+-				unboundClaims = append(unboundClaims, &bindingInfo{pvc: pvc})
++			if delayBindingMode && pvc.Spec.VolumeName == "" {
++				// Delay binding and non-prebound PVCs.
++				if !delayBindingScheduled {
++					unboundClaims = append(unboundClaims, &bindingInfo{pvc: pvc})
++				} else {
++					unboundScheduledClaims = append(unboundScheduledClaims, &bindingInfo{pvc: pvc})
++				}
+ 			} else {
+-				// Immediate binding should have already been bound
+-				unboundClaimsImmediate = append(unboundClaimsImmediate, pvc)
++				// Non delay binding or prebound PVCs.
++				if pvc.Spec.VolumeName == "" {
++					// Scheduler path
++					unboundClaims = append(unboundClaims, &bindingInfo{pvc: pvc})
++				} else {
++					// Immediate binding should have already been bound
++					unboundClaimsImmediate = append(unboundClaimsImmediate, pvc)
++				}
+ 			}
+ 		}
+ 	}
+-	return boundClaims, unboundClaims, unboundClaimsImmediate, nil
++	return boundClaims, unboundClaims, unboundScheduledClaims, unboundClaimsImmediate, nil
+ }
+ 
+ func (b *volumeBinder) checkBoundClaims(claims []*v1.PersistentVolumeClaim, node *v1.Node, podName string) (bool, error) {

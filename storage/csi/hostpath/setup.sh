@@ -10,8 +10,15 @@ kubectl create -f https://raw.githubusercontent.com/kubernetes-csi/external-atta
 kubectl create -f https://raw.githubusercontent.com/kubernetes-csi/driver-registrar/87d0059110a8b4a90a6d2b5a8702dd7f3f270b80/deploy/kubernetes/rbac.yaml
 kubectl create -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/51482343dc7f81fef64e3ec32ea3f48fec17b9cf/deploy/kubernetes/rbac.yaml
 
+kubectl apply -f external-provisioner-runner.fix.yaml 
+
 # programs
-kubectl create -f https://raw.githubusercontent.com/kubernetes/kubernetes/f40a5d1155aae95105a4e9bb8933d750c666e350/test/e2e/testing-manifests/storage-csi/hostpath/hostpath/csi-hostpathplugin.yaml 
-kubectl create -f https://raw.githubusercontent.com/kubernetes/kubernetes/f40a5d1155aae95105a4e9bb8933d750c666e350/test/e2e/testing-manifests/storage-csi/hostpath/hostpath/csi-hostpath-provisioner.yaml
-kubectl create -f https://raw.githubusercontent.com/kubernetes/kubernetes/f40a5d1155aae95105a4e9bb8933d750c666e350/test/e2e/testing-manifests/storage-csi/hostpath/hostpath/csi-hostpath-attacher.yaml
-kubectl create -f https://raw.githubusercontent.com/kubernetes-csi/docs/387dce893e59c1fcf3f4192cbea254440b6f0f07/book/src/example/snapshot/csi-hostpath-snapshotter.yaml
+function apply() {
+    local file=$1
+    wget -q -O - "$file" | sed 's/imagePullPolicy: Always/imagePullPolicy: IfNotPresent/g' | kubectl apply -f -
+}
+
+apply https://raw.githubusercontent.com/kubernetes/kubernetes/f40a5d1155aae95105a4e9bb8933d750c666e350/test/e2e/testing-manifests/storage-csi/hostpath/hostpath/csi-hostpathplugin.yaml 
+apply https://raw.githubusercontent.com/kubernetes/kubernetes/f40a5d1155aae95105a4e9bb8933d750c666e350/test/e2e/testing-manifests/storage-csi/hostpath/hostpath/csi-hostpath-provisioner.yaml
+apply https://raw.githubusercontent.com/kubernetes/kubernetes/f40a5d1155aae95105a4e9bb8933d750c666e350/test/e2e/testing-manifests/storage-csi/hostpath/hostpath/csi-hostpath-attacher.yaml
+apply https://raw.githubusercontent.com/kubernetes-csi/docs/387dce893e59c1fcf3f4192cbea254440b6f0f07/book/src/example/snapshot/csi-hostpath-snapshotter.yaml
