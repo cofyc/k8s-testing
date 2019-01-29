@@ -1,0 +1,559 @@
+diff --git a/pkg/controller/volume/persistentvolume/scheduler_assume_cache.go b/pkg/controller/volume/persistentvolume/scheduler_assume_cache.go
+index cd4bc88..1c2d952 100644
+--- a/pkg/controller/volume/persistentvolume/scheduler_assume_cache.go
++++ b/pkg/controller/volume/persistentvolume/scheduler_assume_cache.go
+@@ -33,6 +33,15 @@ import (
+ // cache's version of the object.  Objects are assumed to be
+ // Kubernetes API objects that implement meta.Interface
+ type AssumeCache interface {
++	// Add the object from apiserver.
++	Add(obj interface{})
++
++	// Update the object from apiserver.
++	Update(oldObj interface{}, newObj interface{})
++
++	// Delete the object from apiserver.
++	Delete(obj interface{})
++
+ 	// Assume updates the object in-memory only
+ 	Assume(obj interface{}) error
+ 
+@@ -127,28 +136,17 @@ func (c *assumeCache) objInfoIndexFunc(obj interface{}) ([]string, error) {
+ 	return c.indexFunc(objInfo.latestObj)
+ }
+ 
+-func NewAssumeCache(informer cache.SharedIndexInformer, description, indexName string, indexFunc cache.IndexFunc) *assumeCache {
++func NewAssumeCache(description, indexName string, indexFunc cache.IndexFunc) *assumeCache {
+ 	c := &assumeCache{
+ 		description: description,
+ 		indexFunc:   indexFunc,
+ 		indexName:   indexName,
+ 	}
+ 	c.store = cache.NewIndexer(objInfoKeyFunc, cache.Indexers{indexName: c.objInfoIndexFunc})
+-
+-	// Unit tests don't use informers
+-	if informer != nil {
+-		informer.AddEventHandler(
+-			cache.ResourceEventHandlerFuncs{
+-				AddFunc:    c.add,
+-				UpdateFunc: c.update,
+-				DeleteFunc: c.delete,
+-			},
+-		)
+-	}
+ 	return c
+ }
+ 
+-func (c *assumeCache) add(obj interface{}) {
++func (c *assumeCache) Add(obj interface{}) {
+ 	if obj == nil {
+ 		return
+ 	}
+@@ -188,11 +186,11 @@ func (c *assumeCache) add(obj interface{}) {
+ 	klog.V(10).Infof("Adding %v %v to assume cache: %+v ", c.description, name, obj)
+ }
+ 
+-func (c *assumeCache) update(oldObj interface{}, newObj interface{}) {
+-	c.add(newObj)
++func (c *assumeCache) Update(oldObj interface{}, newObj interface{}) {
++	c.Add(newObj)
+ }
+ 
+-func (c *assumeCache) delete(obj interface{}) {
++func (c *assumeCache) Delete(obj interface{}) {
+ 	if obj == nil {
+ 		return
+ 	}
+@@ -354,8 +352,8 @@ func pvStorageClassIndexFunc(obj interface{}) ([]string, error) {
+ 	return []string{""}, fmt.Errorf("object is not a v1.PersistentVolume: %v", obj)
+ }
+ 
+-func NewPVAssumeCache(informer cache.SharedIndexInformer) PVAssumeCache {
+-	return &pvAssumeCache{assumeCache: NewAssumeCache(informer, "v1.PersistentVolume", "storageclass", pvStorageClassIndexFunc)}
++func NewPVAssumeCache() PVAssumeCache {
++	return &pvAssumeCache{assumeCache: NewAssumeCache("v1.PersistentVolume", "storageclass", pvStorageClassIndexFunc)}
+ }
+ 
+ func (c *pvAssumeCache) GetPV(pvName string) (*v1.PersistentVolume, error) {
+@@ -414,8 +412,8 @@ type pvcAssumeCache struct {
+ 	*assumeCache
+ }
+ 
+-func NewPVCAssumeCache(informer cache.SharedIndexInformer) PVCAssumeCache {
+-	return &pvcAssumeCache{assumeCache: NewAssumeCache(informer, "v1.PersistentVolumeClaim", "namespace", cache.MetaNamespaceIndexFunc)}
++func NewPVCAssumeCache() PVCAssumeCache {
++	return &pvcAssumeCache{assumeCache: NewAssumeCache("v1.PersistentVolumeClaim", "namespace", cache.MetaNamespaceIndexFunc)}
+ }
+ 
+ func (c *pvcAssumeCache) GetPVC(pvcKey string) (*v1.PersistentVolumeClaim, error) {
+diff --git a/pkg/controller/volume/persistentvolume/scheduler_assume_cache_test.go b/pkg/controller/volume/persistentvolume/scheduler_assume_cache_test.go
+index 40f0ff8..bd81aed 100644
+--- a/pkg/controller/volume/persistentvolume/scheduler_assume_cache_test.go
++++ b/pkg/controller/volume/persistentvolume/scheduler_assume_cache_test.go
+@@ -107,14 +107,14 @@ func TestAssumePV(t *testing.T) {
+ 	}
+ 
+ 	for name, scenario := range scenarios {
+-		cache := NewPVAssumeCache(nil)
++		cache := NewPVAssumeCache()
+ 		internal_cache, ok := cache.(*pvAssumeCache)
+ 		if !ok {
+ 			t.Fatalf("Failed to get internal cache")
+ 		}
+ 
+ 		// Add oldPV to cache
+-		internal_cache.add(scenario.oldPV)
++		internal_cache.Add(scenario.oldPV)
+ 		if err := verifyPV(cache, scenario.oldPV.Name, scenario.oldPV); err != nil {
+ 			t.Errorf("Failed to GetPV() after initial update: %v", err)
+ 			continue
+@@ -141,7 +141,7 @@ func TestAssumePV(t *testing.T) {
+ }
+ 
+ func TestRestorePV(t *testing.T) {
+-	cache := NewPVAssumeCache(nil)
++	cache := NewPVAssumeCache()
+ 	internal_cache, ok := cache.(*pvAssumeCache)
+ 	if !ok {
+ 		t.Fatalf("Failed to get internal cache")
+@@ -154,7 +154,7 @@ func TestRestorePV(t *testing.T) {
+ 	cache.Restore("nothing")
+ 
+ 	// Add oldPV to cache
+-	internal_cache.add(oldPV)
++	internal_cache.Add(oldPV)
+ 	if err := verifyPV(cache, oldPV.Name, oldPV); err != nil {
+ 		t.Fatalf("Failed to GetPV() after initial update: %v", err)
+ 	}
+@@ -181,7 +181,7 @@ func TestRestorePV(t *testing.T) {
+ }
+ 
+ func TestBasicPVCache(t *testing.T) {
+-	cache := NewPVAssumeCache(nil)
++	cache := NewPVAssumeCache()
+ 	internal_cache, ok := cache.(*pvAssumeCache)
+ 	if !ok {
+ 		t.Fatalf("Failed to get internal cache")
+@@ -201,7 +201,7 @@ func TestBasicPVCache(t *testing.T) {
+ 	for i := 0; i < 10; i++ {
+ 		pv := makePV(fmt.Sprintf("test-pv%v", i), "1", "")
+ 		pvs[pv.Name] = pv
+-		internal_cache.add(pv)
++		internal_cache.Add(pv)
+ 	}
+ 
+ 	// List them
+@@ -210,7 +210,7 @@ func TestBasicPVCache(t *testing.T) {
+ 	// Update a PV
+ 	updatedPV := makePV("test-pv3", "2", "")
+ 	pvs[updatedPV.Name] = updatedPV
+-	internal_cache.update(nil, updatedPV)
++	internal_cache.Update(nil, updatedPV)
+ 
+ 	// List them
+ 	verifyListPVs(t, cache, pvs, "")
+@@ -218,14 +218,14 @@ func TestBasicPVCache(t *testing.T) {
+ 	// Delete a PV
+ 	deletedPV := pvs["test-pv7"]
+ 	delete(pvs, deletedPV.Name)
+-	internal_cache.delete(deletedPV)
++	internal_cache.Delete(deletedPV)
+ 
+ 	// List them
+ 	verifyListPVs(t, cache, pvs, "")
+ }
+ 
+ func TestPVCacheWithStorageClasses(t *testing.T) {
+-	cache := NewPVAssumeCache(nil)
++	cache := NewPVAssumeCache()
+ 	internal_cache, ok := cache.(*pvAssumeCache)
+ 	if !ok {
+ 		t.Fatalf("Failed to get internal cache")
+@@ -236,7 +236,7 @@ func TestPVCacheWithStorageClasses(t *testing.T) {
+ 	for i := 0; i < 10; i++ {
+ 		pv := makePV(fmt.Sprintf("test-pv%v", i), "1", "class1")
+ 		pvs1[pv.Name] = pv
+-		internal_cache.add(pv)
++		internal_cache.Add(pv)
+ 	}
+ 
+ 	// Add a bunch of PVs
+@@ -244,7 +244,7 @@ func TestPVCacheWithStorageClasses(t *testing.T) {
+ 	for i := 0; i < 10; i++ {
+ 		pv := makePV(fmt.Sprintf("test2-pv%v", i), "1", "class2")
+ 		pvs2[pv.Name] = pv
+-		internal_cache.add(pv)
++		internal_cache.Add(pv)
+ 	}
+ 
+ 	// List them
+@@ -254,7 +254,7 @@ func TestPVCacheWithStorageClasses(t *testing.T) {
+ 	// Update a PV
+ 	updatedPV := makePV("test-pv3", "2", "class1")
+ 	pvs1[updatedPV.Name] = updatedPV
+-	internal_cache.update(nil, updatedPV)
++	internal_cache.Update(nil, updatedPV)
+ 
+ 	// List them
+ 	verifyListPVs(t, cache, pvs1, "class1")
+@@ -263,7 +263,7 @@ func TestPVCacheWithStorageClasses(t *testing.T) {
+ 	// Delete a PV
+ 	deletedPV := pvs1["test-pv7"]
+ 	delete(pvs1, deletedPV.Name)
+-	internal_cache.delete(deletedPV)
++	internal_cache.Delete(deletedPV)
+ 
+ 	// List them
+ 	verifyListPVs(t, cache, pvs1, "class1")
+@@ -271,7 +271,7 @@ func TestPVCacheWithStorageClasses(t *testing.T) {
+ }
+ 
+ func TestAssumeUpdatePVCache(t *testing.T) {
+-	cache := NewPVAssumeCache(nil)
++	cache := NewPVAssumeCache()
+ 	internal_cache, ok := cache.(*pvAssumeCache)
+ 	if !ok {
+ 		t.Fatalf("Failed to get internal cache")
+@@ -281,7 +281,7 @@ func TestAssumeUpdatePVCache(t *testing.T) {
+ 
+ 	// Add a PV
+ 	pv := makePV(pvName, "1", "")
+-	internal_cache.add(pv)
++	internal_cache.Add(pv)
+ 	if err := verifyPV(cache, pvName, pv); err != nil {
+ 		t.Fatalf("failed to get PV: %v", err)
+ 	}
+@@ -297,7 +297,7 @@ func TestAssumeUpdatePVCache(t *testing.T) {
+ 	}
+ 
+ 	// Add old PV
+-	internal_cache.add(pv)
++	internal_cache.Add(pv)
+ 	if err := verifyPV(cache, pvName, newPV); err != nil {
+ 		t.Fatalf("failed to get PV after old PV added: %v", err)
+ 	}
+@@ -364,14 +364,14 @@ func TestAssumePVC(t *testing.T) {
+ 	}
+ 
+ 	for name, scenario := range scenarios {
+-		cache := NewPVCAssumeCache(nil)
++		cache := NewPVCAssumeCache()
+ 		internal_cache, ok := cache.(*pvcAssumeCache)
+ 		if !ok {
+ 			t.Fatalf("Failed to get internal cache")
+ 		}
+ 
+ 		// Add oldPVC to cache
+-		internal_cache.add(scenario.oldPVC)
++		internal_cache.Add(scenario.oldPVC)
+ 		if err := verifyPVC(cache, getPVCName(scenario.oldPVC), scenario.oldPVC); err != nil {
+ 			t.Errorf("Failed to GetPVC() after initial update: %v", err)
+ 			continue
+@@ -398,7 +398,7 @@ func TestAssumePVC(t *testing.T) {
+ }
+ 
+ func TestRestorePVC(t *testing.T) {
+-	cache := NewPVCAssumeCache(nil)
++	cache := NewPVCAssumeCache()
+ 	internal_cache, ok := cache.(*pvcAssumeCache)
+ 	if !ok {
+ 		t.Fatalf("Failed to get internal cache")
+@@ -411,7 +411,7 @@ func TestRestorePVC(t *testing.T) {
+ 	cache.Restore("nothing")
+ 
+ 	// Add oldPVC to cache
+-	internal_cache.add(oldPVC)
++	internal_cache.Add(oldPVC)
+ 	if err := verifyPVC(cache, getPVCName(oldPVC), oldPVC); err != nil {
+ 		t.Fatalf("Failed to GetPVC() after initial update: %v", err)
+ 	}
+@@ -438,7 +438,7 @@ func TestRestorePVC(t *testing.T) {
+ }
+ 
+ func TestAssumeUpdatePVCCache(t *testing.T) {
+-	cache := NewPVCAssumeCache(nil)
++	cache := NewPVCAssumeCache()
+ 	internal_cache, ok := cache.(*pvcAssumeCache)
+ 	if !ok {
+ 		t.Fatalf("Failed to get internal cache")
+@@ -449,7 +449,7 @@ func TestAssumeUpdatePVCCache(t *testing.T) {
+ 
+ 	// Add a PVC
+ 	pvc := makeClaim(pvcName, "1", pvcNamespace)
+-	internal_cache.add(pvc)
++	internal_cache.Add(pvc)
+ 	if err := verifyPVC(cache, getPVCName(pvc), pvc); err != nil {
+ 		t.Fatalf("failed to get PVC: %v", err)
+ 	}
+@@ -465,7 +465,7 @@ func TestAssumeUpdatePVCCache(t *testing.T) {
+ 	}
+ 
+ 	// Add old PVC
+-	internal_cache.add(pvc)
++	internal_cache.Add(pvc)
+ 	if err := verifyPVC(cache, getPVCName(pvc), newPVC); err != nil {
+ 		t.Fatalf("failed to get PVC after old PVC added: %v", err)
+ 	}
+diff --git a/pkg/controller/volume/persistentvolume/scheduler_binder.go b/pkg/controller/volume/persistentvolume/scheduler_binder.go
+index c39dd5e..db62753 100644
+--- a/pkg/controller/volume/persistentvolume/scheduler_binder.go
++++ b/pkg/controller/volume/persistentvolume/scheduler_binder.go
+@@ -115,8 +115,8 @@ type volumeBinder struct {
+ func NewVolumeBinder(
+ 	kubeClient clientset.Interface,
+ 	nodeInformer coreinformers.NodeInformer,
+-	pvcInformer coreinformers.PersistentVolumeClaimInformer,
+-	pvInformer coreinformers.PersistentVolumeInformer,
++	pvcCache PVCAssumeCache,
++	pvCache PVAssumeCache,
+ 	storageClassInformer storageinformers.StorageClassInformer,
+ 	bindTimeout time.Duration) SchedulerVolumeBinder {
+ 
+@@ -129,8 +129,8 @@ func NewVolumeBinder(
+ 	b := &volumeBinder{
+ 		ctrl:            ctrl,
+ 		nodeInformer:    nodeInformer,
+-		pvcCache:        NewPVCAssumeCache(pvcInformer.Informer()),
+-		pvCache:         NewPVAssumeCache(pvInformer.Informer()),
++		pvcCache:        pvcCache,
++		pvCache:         pvCache,
+ 		podBindingCache: NewPodBindingCache(),
+ 		bindTimeout:     bindTimeout,
+ 	}
+diff --git a/pkg/controller/volume/persistentvolume/scheduler_binder_test.go b/pkg/controller/volume/persistentvolume/scheduler_binder_test.go
+index a3792ec..ce1e8d6 100644
+--- a/pkg/controller/volume/persistentvolume/scheduler_binder_test.go
++++ b/pkg/controller/volume/persistentvolume/scheduler_binder_test.go
+@@ -36,6 +36,7 @@ import (
+ 	clientset "k8s.io/client-go/kubernetes"
+ 	"k8s.io/client-go/kubernetes/fake"
+ 	k8stesting "k8s.io/client-go/testing"
++	"k8s.io/client-go/tools/cache"
+ 	"k8s.io/klog"
+ 	"k8s.io/kubernetes/pkg/api/testapi"
+ 	"k8s.io/kubernetes/pkg/controller"
+@@ -123,11 +124,28 @@ func newTestBinder(t *testing.T, stopCh <-chan struct{}) *testEnv {
+ 	nodeInformer := informerFactory.Core().V1().Nodes()
+ 	pvcInformer := informerFactory.Core().V1().PersistentVolumeClaims()
+ 	classInformer := informerFactory.Storage().V1().StorageClasses()
++	pvcCache := NewPVCAssumeCache()
++	pvCache := NewPVAssumeCache()
++	pvcInformer.Informer().AddEventHandler(
++		cache.ResourceEventHandlerFuncs{
++			AddFunc:    pvcCache.Add,
++			UpdateFunc: pvcCache.Update,
++			DeleteFunc: pvcCache.Delete,
++		},
++	)
++	informerFactory.Core().V1().PersistentVolumes().Informer().AddEventHandler(
++		cache.ResourceEventHandlerFuncs{
++			AddFunc:    pvCache.Add,
++			UpdateFunc: pvCache.Update,
++			DeleteFunc: pvCache.Delete,
++		},
++	)
++
+ 	binder := NewVolumeBinder(
+ 		client,
+ 		nodeInformer,
+-		pvcInformer,
+-		informerFactory.Core().V1().PersistentVolumes(),
++		pvcCache,
++		pvCache,
+ 		classInformer,
+ 		10*time.Second)
+ 
+@@ -203,14 +221,12 @@ func newTestBinder(t *testing.T, stopCh <-chan struct{}) *testEnv {
+ 		t.Fatalf("Failed to convert to internal binder")
+ 	}
+ 
+-	pvCache := internalBinder.pvCache
+-	internalPVCache, ok := pvCache.(*pvAssumeCache)
++	internalPVCache, ok := internalBinder.pvCache.(*pvAssumeCache)
+ 	if !ok {
+ 		t.Fatalf("Failed to convert to internal PV cache")
+ 	}
+ 
+-	pvcCache := internalBinder.pvcCache
+-	internalPVCCache, ok := pvcCache.(*pvcAssumeCache)
++	internalPVCCache, ok := internalBinder.pvcCache.(*pvcAssumeCache)
+ 	if !ok {
+ 		t.Fatalf("Failed to convert to internal PVC cache")
+ 	}
+@@ -236,7 +252,7 @@ func (env *testEnv) initNodes(cachedNodes []*v1.Node) {
+ func (env *testEnv) initClaims(cachedPVCs []*v1.PersistentVolumeClaim, apiPVCs []*v1.PersistentVolumeClaim) {
+ 	internalPVCCache := env.internalPVCCache
+ 	for _, pvc := range cachedPVCs {
+-		internalPVCCache.add(pvc)
++		internalPVCCache.Add(pvc)
+ 		if apiPVCs == nil {
+ 			env.reactor.claims[pvc.Name] = pvc
+ 		}
+@@ -249,7 +265,7 @@ func (env *testEnv) initClaims(cachedPVCs []*v1.PersistentVolumeClaim, apiPVCs [
+ func (env *testEnv) initVolumes(cachedPVs []*v1.PersistentVolume, apiPVs []*v1.PersistentVolume) {
+ 	internalPVCache := env.internalPVCache
+ 	for _, pv := range cachedPVs {
+-		internalPVCache.add(pv)
++		internalPVCache.Add(pv)
+ 		if apiPVs == nil {
+ 			env.reactor.volumes[pv.Name] = pv
+ 		}
+@@ -310,13 +326,13 @@ func (env *testEnv) updateClaims(t *testing.T, pvcs []*v1.PersistentVolumeClaim,
+ 
+ func (env *testEnv) deleteVolumes(pvs []*v1.PersistentVolume) {
+ 	for _, pv := range pvs {
+-		env.internalPVCache.delete(pv)
++		env.internalPVCache.Delete(pv)
+ 	}
+ }
+ 
+ func (env *testEnv) deleteClaims(pvcs []*v1.PersistentVolumeClaim) {
+ 	for _, pvc := range pvcs {
+-		env.internalPVCCache.delete(pvc)
++		env.internalPVCCache.Delete(pvc)
+ 	}
+ }
+ 
+diff --git a/pkg/scheduler/factory/factory.go b/pkg/scheduler/factory/factory.go
+index 91432af..08f596f 100644
+--- a/pkg/scheduler/factory/factory.go
++++ b/pkg/scheduler/factory/factory.go
+@@ -340,6 +340,9 @@ func NewConfigFactory(args *ConfigFactoryArgs) Configurator {
+ 	// they may need to call.
+ 	c.scheduledPodLister = assignedPodLister{args.PodInformer.Lister()}
+ 
++	// Setup volume binder
++	c.volumeBinder = volumebinder.NewVolumeBinder(args.Client, args.NodeInformer, args.StorageClassInformer, time.Duration(args.BindTimeoutSeconds)*time.Second)
++
+ 	args.NodeInformer.Informer().AddEventHandler(
+ 		cache.ResourceEventHandlerFuncs{
+ 			AddFunc:    c.addNodeToCache,
+@@ -349,18 +352,32 @@ func NewConfigFactory(args *ConfigFactoryArgs) Configurator {
+ 	)
+ 
+ 	args.PvInformer.Informer().AddEventHandler(
+-		cache.ResourceEventHandlerFuncs{
+-			// MaxPDVolumeCountPredicate: since it relies on the counts of PV.
+-			AddFunc:    c.onPvAdd,
+-			UpdateFunc: c.onPvUpdate,
++		util.OrderedResourceEventHandlers{
++			cache.ResourceEventHandlerFuncs{
++				AddFunc:    c.volumeBinder.PVAssumeCache.Add,
++				UpdateFunc: c.volumeBinder.PVAssumeCache.Update,
++				DeleteFunc: c.volumeBinder.PVAssumeCache.Delete,
++			},
++			cache.ResourceEventHandlerFuncs{
++				// MaxPDVolumeCountPredicate: since it relies on the counts of PV.
++				AddFunc:    c.onPvAdd,
++				UpdateFunc: c.onPvUpdate,
++			},
+ 		},
+ 	)
+ 
+ 	// This is for MaxPDVolumeCountPredicate: add/delete PVC will affect counts of PV when it is bound.
+ 	args.PvcInformer.Informer().AddEventHandler(
+-		cache.ResourceEventHandlerFuncs{
+-			AddFunc:    c.onPvcAdd,
+-			UpdateFunc: c.onPvcUpdate,
++		util.OrderedResourceEventHandlers{
++			cache.ResourceEventHandlerFuncs{
++				AddFunc:    c.volumeBinder.PVCAssumeCache.Add,
++				UpdateFunc: c.volumeBinder.PVCAssumeCache.Update,
++				DeleteFunc: c.volumeBinder.PVCAssumeCache.Delete,
++			},
++			cache.ResourceEventHandlerFuncs{
++				AddFunc:    c.onPvcAdd,
++				UpdateFunc: c.onPvcUpdate,
++			},
+ 		},
+ 	)
+ 
+@@ -373,9 +390,6 @@ func NewConfigFactory(args *ConfigFactoryArgs) Configurator {
+ 		},
+ 	)
+ 
+-	// Setup volume binder
+-	c.volumeBinder = volumebinder.NewVolumeBinder(args.Client, args.NodeInformer, args.PvcInformer, args.PvInformer, args.StorageClassInformer, time.Duration(args.BindTimeoutSeconds)*time.Second)
+-
+ 	args.StorageClassInformer.Informer().AddEventHandler(
+ 		cache.ResourceEventHandlerFuncs{
+ 			AddFunc: c.onStorageClassAdd,
+diff --git a/pkg/scheduler/util/utils.go b/pkg/scheduler/util/utils.go
+index d6fe01b..7d06935 100644
+--- a/pkg/scheduler/util/utils.go
++++ b/pkg/scheduler/util/utils.go
+@@ -21,6 +21,7 @@ import (
+ 
+ 	"k8s.io/api/core/v1"
+ 	"k8s.io/apiserver/pkg/util/feature"
++	"k8s.io/client-go/tools/cache"
+ 	"k8s.io/kubernetes/pkg/apis/scheduling"
+ 	"k8s.io/kubernetes/pkg/features"
+ )
+@@ -97,3 +98,33 @@ func (l *SortableList) Sort() {
+ func HigherPriorityPod(pod1, pod2 interface{}) bool {
+ 	return GetPodPriority(pod1.(*v1.Pod)) > GetPodPriority(pod2.(*v1.Pod))
+ }
++
++// OrderedResourceEventHandlers implements cache.ResourceEventHandler. It
++// applies received events on multiple event handlers in order.
++type OrderedResourceEventHandlers []cache.ResourceEventHandler
++
++var _ = cache.ResourceEventHandler(OrderedResourceEventHandlers{})
++
++func (handlers OrderedResourceEventHandlers) OnAdd(obj interface{}) {
++	for _, h := range handlers {
++		if h.OnAdd != nil {
++			h.OnAdd(obj)
++		}
++	}
++}
++
++func (handlers OrderedResourceEventHandlers) OnUpdate(oldObj, newObj interface{}) {
++	for _, h := range handlers {
++		if h.OnUpdate != nil {
++			h.OnUpdate(oldObj, newObj)
++		}
++	}
++}
++
++func (handlers OrderedResourceEventHandlers) OnDelete(obj interface{}) {
++	for _, h := range handlers {
++		if h.OnDelete != nil {
++			h.OnDelete(obj)
++		}
++	}
++}
+diff --git a/pkg/scheduler/volumebinder/volume_binder.go b/pkg/scheduler/volumebinder/volume_binder.go
+index 53e3488..9a74ca0 100644
+--- a/pkg/scheduler/volumebinder/volume_binder.go
++++ b/pkg/scheduler/volumebinder/volume_binder.go
+@@ -28,20 +28,24 @@ import (
+ 
+ // VolumeBinder sets up the volume binding library
+ type VolumeBinder struct {
+-	Binder persistentvolume.SchedulerVolumeBinder
++	Binder         persistentvolume.SchedulerVolumeBinder
++	PVCAssumeCache persistentvolume.PVCAssumeCache
++	PVAssumeCache  persistentvolume.PVAssumeCache
+ }
+ 
+ // NewVolumeBinder sets up the volume binding library and binding queue
+ func NewVolumeBinder(
+ 	client clientset.Interface,
+ 	nodeInformer coreinformers.NodeInformer,
+-	pvcInformer coreinformers.PersistentVolumeClaimInformer,
+-	pvInformer coreinformers.PersistentVolumeInformer,
+ 	storageClassInformer storageinformers.StorageClassInformer,
+ 	bindTimeout time.Duration) *VolumeBinder {
+ 
++	pvcCache := persistentvolume.NewPVCAssumeCache()
++	pvCache := persistentvolume.NewPVAssumeCache()
+ 	return &VolumeBinder{
+-		Binder: persistentvolume.NewVolumeBinder(client, nodeInformer, pvcInformer, pvInformer, storageClassInformer, bindTimeout),
++		Binder:         persistentvolume.NewVolumeBinder(client, nodeInformer, pvcCache, pvCache, storageClassInformer, bindTimeout),
++		PVCAssumeCache: pvcCache,
++		PVAssumeCache:  pvCache,
+ 	}
+ }
+ 

@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bb
+spec:
+  replicas: 50
+  selector:
+    matchLabels:
+      service: bb
+  template:
+    metadata:
+      labels:
+        service: bb
+    spec:
+      containers:
+        - image: busybox:latest
+          command: ['/bin/sh', '-c', '/bin/tail -f /dev/null']
+          name: bb
+          resources:
+            requests:
+              memory: "16Mi"
+              cpu: "10m"
+            limits:
+              memory: "32Mi"
+          volumeMounts:
+            - mountPath: /tokens
+              name: pv-vault-proxy
+          imagePullPolicy: IfNotPresent
+      volumes:
+        - name: pv-vault-proxy
+          persistentVolumeClaim:
+            claimName: pvc-vault-ro
+      restartPolicy: Always
+      # automountServiceAccountToken: false
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: pvc-vault-ro
+spec:
+  accessModes:
+    - ReadOnlyMany
+  resources:
+    requests:
+      storage: 10Mi
+  storageClassName: sc-vault-ro
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-vault-ro
+spec:
+  capacity:
+    storage: 10Mi
+  accessModes:
+    - ReadOnlyMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: sc-vault-ro
+  hostPath:
+    path: "/tmp"

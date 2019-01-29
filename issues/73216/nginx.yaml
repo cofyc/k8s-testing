@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bb
+spec:
+  replicas: 50
+  selector:
+    matchLabels:
+      service: bb
+  template:
+    metadata:
+      labels:
+        service: bb
+    spec:
+      containers:
+        - image: busybox:latest
+          command: ['/bin/sh', '-c', '/bin/tail -f /dev/null']
+          name: bb
+          resources:
+            requests:
+              memory: "16Mi"
+              cpu: "10m"
+            limits:
+              memory: "32Mi"
+          volumeMounts:
+            - mountPath: /tokens
+              name: pv-vault-proxy
+      volumes:
+        - name: pv-vault-proxy
+          persistentVolumeClaim:
+            claimName: pvc-vault-ro
+      restartPolicy: Always
+      # automountServiceAccountToken: false
