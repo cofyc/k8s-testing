@@ -1,4 +1,7 @@
 #!/bin/bash
+#
+# https://kubernetes-csi.github.io/docs/Example.html
+#
 
 # CRDs
 kubectl create -f https://raw.githubusercontent.com/kubernetes/csi-api/master/pkg/crd/manifests/csidriver.yaml --validate=false
@@ -6,11 +9,12 @@ kubectl create -f https://raw.githubusercontent.com/kubernetes/csi-api/master/pk
 
 # RABC
 kubectl create -f https://raw.githubusercontent.com/kubernetes-csi/external-provisioner/1cd1c20a6d4b2fcd25c98a008385b436d61d46a4/deploy/kubernetes/rbac.yaml
+kubectl create -f
+# fix for external-provisioner
+kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-provisioner/3aa7a5d8067b030c42374210b0766de394062000/deploy/kubernetes/rbac.yaml
 kubectl create -f https://raw.githubusercontent.com/kubernetes-csi/external-attacher/9da8c6d20d58750ee33d61d0faf0946641f50770/deploy/kubernetes/rbac.yaml
 kubectl create -f https://raw.githubusercontent.com/kubernetes-csi/driver-registrar/87d0059110a8b4a90a6d2b5a8702dd7f3f270b80/deploy/kubernetes/rbac.yaml
-kubectl create -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/51482343dc7f81fef64e3ec32ea3f48fec17b9cf/deploy/kubernetes/rbac.yaml
-
-kubectl apply -f external-provisioner-runner.fix.yaml 
+kubectl create -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/01bd7f356e6718dee87914232d287631655bef1d/deploy/kubernetes/rbac.yaml
 
 # programs
 function apply() {

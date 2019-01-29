@@ -16,6 +16,10 @@ while getopts "b" opt; do
     esac
 done
 
+if [ "${1:-}" == "--" ]; then
+    shift
+fi
+
 source "$ROOT/hack/env.sh"
 
 KUBE_ROOT=$GOPATH/src/k8s.io/kubernetes
@@ -25,9 +29,9 @@ if $build; then
     make WHAT=test/e2e/e2e.test
 fi
 
-kubetest_args=(
-    --extract "ci/latest"
-)
+# kubetest_args=(
+    # --extract "ci/latest"
+# )
 
 # gce
 kubetest_args+=(
@@ -38,11 +42,8 @@ kubetest_args+=(
     --deployment "bash"
 )
 
-# --down
+# append extra arguments
 kubetest_args+=(
-    --up
-    --test
-    --test_args '--ginkgo.focus="Stress\swith\slocal\svolumes"'
     $@
 )
 
