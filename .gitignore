@@ -1,1 +1,4 @@
-hack/env.sh
+/hack/env.sh
+# kubernetes src which may be extracted by kubetest
+/kubernetes
+/kubernetes.tar.gz
