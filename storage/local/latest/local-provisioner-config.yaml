@@ -9,3 +9,16 @@ data:
     local-storage:
       hostDir: /mnt/disks
       mountDir: /mnt/disks
+    # local-storage-2:
+      # hostDir: /mnt/disks
+      # mountDir: /mnt/disks
+    # local-storage-gitlab:
+      # hostDir: /mnt/disks/gitlab
+      # mountDir: /mnt/disks/gitlab
+      # labels:
+         # app=gitlab
+    # local-storage-other:
+      # hostDir: /mnt/disks/other
+      # mountDir: /mnt/disks/other
+      # labels:
+         # app=other

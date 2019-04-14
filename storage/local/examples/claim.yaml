@@ -1,7 +1,7 @@
 kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
-  name: example-local-claim
+  name: example-local-claim-0
 spec:
   accessModes:
   - ReadWriteOnce
@@ -9,3 +9,39 @@ spec:
     requests:
       storage: 1Mi
   storageClassName: local-storage
+# ---
+# kind: PersistentVolumeClaim
+# apiVersion: v1
+# metadata:
+  # name: example-local-claim-1
+# spec:
+  # accessModes:
+  # - ReadWriteOnce
+  # resources:
+    # requests:
+      # storage: 1Mi
+  # storageClassName: local-storage
+# ---
+# kind: PersistentVolumeClaim
+# apiVersion: v1
+# metadata:
+  # name: example-local-claim-2
+# spec:
+  # accessModes:
+  # - ReadWriteOnce
+  # resources:
+    # requests:
+      # storage: 1Mi
+  # storageClassName: local-storage
+# ---
+# kind: PersistentVolumeClaim
+# apiVersion: v1
+# metadata:
+  # name: example-local-claim-3
+# spec:
+  # accessModes:
+  # - ReadWriteOnce
+  # resources:
+    # requests:
+      # storage: 1Mi
+  # storageClassName: local-storage

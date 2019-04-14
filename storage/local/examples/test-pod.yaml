@@ -1,0 +1,99 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: test-pod-0
+spec:
+  containers:
+  - name: test-pod
+    image: alpine:3.6
+    command:
+    - "/bin/sh"
+    args:
+    - "-c"
+    # See https://superuser.com/a/1299463/290489.
+    - "trap 'exit' TERM; while true; do sleep 1; done"
+    volumeMounts:
+    - name: local
+      mountPath: "/mnt"
+  restartPolicy: "Never"
+  securityContext:
+    fsGroup: 1234
+  volumes:
+  - name: local
+    persistentVolumeClaim:
+      claimName: example-local-claim-0
+# ---
+# kind: Pod
+# apiVersion: v1
+# metadata:
+  # name: test-pod-1
+# spec:
+  # containers:
+  # - name: test-pod
+    # image: alpine:3.6
+    # command:
+    # - "/bin/sh"
+    # args:
+    # - "-c"
+    # # See https://superuser.com/a/1299463/290489.
+    # - "trap 'exit' TERM; while true; do sleep 1; done"
+    # volumeMounts:
+    # - name: local
+      # mountPath: "/mnt"
+  # restartPolicy: "Never"
+  # securityContext:
+    # fsGroup: 1234
+  # volumes:
+  # - name: local
+    # persistentVolumeClaim:
+      # claimName: example-local-claim-1
+# ---
+# kind: Pod
+# apiVersion: v1
+# metadata:
+  # name: test-pod-2
+# spec:
+  # containers:
+  # - name: test-pod
+    # image: alpine:3.6
+    # command:
+    # - "/bin/sh"
+    # args:
+    # - "-c"
+    # # See https://superuser.com/a/1299463/290489.
+    # - "trap 'exit' TERM; while true; do sleep 1; done"
+    # volumeMounts:
+    # - name: local
+      # mountPath: "/mnt"
+  # restartPolicy: "Never"
+  # securityContext:
+    # fsGroup: 1234
+  # volumes:
+  # - name: local
+    # persistentVolumeClaim:
+      # claimName: example-local-claim-2
+# ---
+# kind: Pod
+# apiVersion: v1
+# metadata:
+  # name: test-pod-3
+# spec:
+  # containers:
+  # - name: test-pod
+    # image: alpine:3.6
+    # command:
+    # - "/bin/sh"
+    # args:
+    # - "-c"
+    # # See https://superuser.com/a/1299463/290489.
+    # - "trap 'exit' TERM; while true; do sleep 1; done"
+    # volumeMounts:
+    # - name: local
+      # mountPath: "/mnt"
+  # restartPolicy: "Never"
+  # securityContext:
+    # fsGroup: 1234
+  # volumes:
+  # - name: local
+    # persistentVolumeClaim:
+      # claimName: example-local-claim-3

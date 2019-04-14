@@ -24,15 +24,11 @@ source "$ROOT/hack/env.sh"
 
 if $build; then
     (
-    KUBE_ROOT=$GOPATH/src/k8s.io/kubernetes
-    cd $KUBE_ROOT
-    make WHAT=test/e2e/e2e.test
+        KUBE_ROOT=$GOPATH/src/k8s.io/kubernetes
+        cd $KUBE_ROOT
+        make WHAT=test/e2e/e2e.test
     )
 fi
-
-kubetest_args=(
-    --extract "ci/latest"
-)
 
 # gce
 kubetest_args+=(
@@ -48,5 +44,6 @@ kubetest_args+=(
     $@
 )
 
+cd $GOPATH/src/k8s.io/kubernetes
 go run $GOPATH/src/k8s.io/kubernetes/hack/e2e.go -old 240000h -- \
     "${kubetest_args[@]}"
