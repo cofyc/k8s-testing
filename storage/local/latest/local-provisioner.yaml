@@ -16,7 +16,7 @@ spec:
     spec:
       serviceAccountName: local-storage-admin
       containers:
-        - image: "quay.io/external_storage/local-volume-provisioner:latest"
+        - image: "quay.io/external_storage/local-volume-provisioner-amd64:latest"
           imagePullPolicy: IfNotPresent
           name: provisioner 
           securityContext:
@@ -31,7 +31,7 @@ spec:
               fieldRef:
                 fieldPath: metadata.namespace
           - name: JOB_CONTAINER_IMAGE
-            value: "quay.io/external_storage/local-volume-provisioner:latest"
+            value: "quay.io/external_storage/local-volume-provisioner-amd64:latest"
           volumeMounts:
             - mountPath: /etc/provisioner/config 
               name: provisioner-config

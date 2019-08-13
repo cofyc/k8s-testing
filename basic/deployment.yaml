@@ -1,0 +1,27 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    app: deploy
+  name: deploy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: deploy
+  template:
+    metadata:
+      annotations:
+        foo: bar
+      labels:
+        app: deploy
+    spec:
+      containers:
+      - name: test-pod-1
+        image: alpine
+        command:
+        - "/bin/sh"
+        args:
+        - "-c"
+        - "trap exit EXIT; while true; do sleep 1; done"
+      restartPolicy: Always

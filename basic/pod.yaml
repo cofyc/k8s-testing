@@ -11,3 +11,6 @@ spec:
     args:
     - "-c"
     - "trap exit EXIT; while true; do sleep 1; done"
+  restartPolicy: Always
+  nodeSelector:
+    kubernetes.io/hostname: 127.0.0.1
