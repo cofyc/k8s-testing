@@ -1,0 +1,136 @@
+# https://github.com/pingcap/tidb-operator/issues/1603
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: clear-empty-cgroups
+  namespace: fuyecheng
+  labels:
+    app: clear-empty-cgroups
+spec:
+  selector:
+    matchLabels:
+      app: clear-empty-cgroups
+  template:
+    metadata:
+      labels:
+        app: clear-empty-cgroups
+    spec:
+      containers:
+      - image: gcr.io/k8s-testimages/kubekins-e2e:v20191108-9467d02-master
+        name: main
+        command:
+        - bash
+        - -c
+        - |
+          cgroups=$(cat /proc/cgroups | tail -n +2 | awk '{print $1}')
+
+          echo "cgroups: $cgroups"
+
+          function clear_cgroups_recursively() {
+              local d=$1
+              if [ ! -d "$d" ]; then
+                  echo "$(date) info: '$d' does not exist, skipped"
+                  return
+              fi
+              local directories=$(find "$d" -mindepth 1 -maxdepth 1 -type d)
+              for subd in $directories; do
+                  if ! clear_cgroups_recursively $subd; then
+                      return 1
+                  fi
+              done
+              rmdir $d
+          }
+
+          function is_container_empty() {
+              for sub in $cgroups; do
+                  local procs=$(find "/sys/fs/cgroup/$sub/docker/$c" -name 'cgroup.procs' | xargs cat)
+                  if [ -n "$procs" ]; then
+                      return 1
+                  fi
+              done
+              # check again after 10 seconds, if it is still empty, we think the container is ok to remove
+              sleep 10
+              for sub in $cgroups; do
+                  local procs=$(find "/sys/fs/cgroup/$sub/docker/$c" -name 'cgroup.procs' | xargs cat)
+                  if [ -n "$procs" ]; then
+                      return 1
+                  fi
+              done
+              return 0
+          }
+
+          function clear_container() {
+              local c=$1
+              if is_container_empty "$c"; then
+                  echo "$(date) info: $c is empty, trying to clear"
+                  for sub in $cgroups; do
+                      if ! clear_cgroups_recursively "/sys/fs/cgroup/$sub/docker/$c"; then
+                          echo "$(date) info: cannot clear $c, skipped"
+                          break
+                      fi
+                  done
+              else
+                  echo "$(date) info: $c is not empty, skipped"
+              fi
+          }
+
+          while true; do
+              # fix "too many open files"
+              # https://github.com/kubernetes-sigs/kind/blob/21dbe8351cbefffd0815fde5516bfbc23fb438ea/site/content/docs/user/known-issues.md#pod-errors-due-to-too-many-open-files
+              echo "$(date) info: configure sysctl -w fs.inotify.max_user_watches=1048576"
+              sysctl -w fs.inotify.max_user_watches=1048576
+              echo "$(date) info: configure sysctl -w fs.inotify.max_user_instances=512"
+              sysctl -w fs.inotify.max_user_instances=512
+              echo "$(date) info: cgroup status at the begning"
+              cat /proc/cgroups 
+
+              for d in $(find /sys/fs/cgroup/memory/docker -mindepth 1 -maxdepth 1 -type d); do
+                  clear_container $(basename $d)
+              done
+
+              echo "$(date) info: cgroup status at the end"
+              cat /proc/cgroups
+              sleep 1800
+          done
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: /sys/fs/cgroup
+          name: cgroup
+      hostPID: true # required if we want to check pids in cgroup.procs
+      volumes:
+      - name: cgroup
+        hostPath:
+          path: /sys/fs/cgroup
+          type: Directory
+      tolerations:
+      - effect: NoSchedule
+        key: tidb-operator
+        operator: Exists
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: node-role.kubernetes.io/master
+                operator: DoesNotExist
+        #nodeAffinity:
+        #  requiredDuringSchedulingIgnoredDuringExecution:
+        #    nodeSelectorTerms:
+        #    - matchExpressions:
+        #      - key: kubernetes.io/hostname
+        #        operator: In
+        #        values:
+        #        - 172.16.5.50
+        #        - 172.16.5.51
+        #        - 172.16.5.56
+        #        - 172.16.5.57
+        #        - 172.16.5.58
+        #        - 172.16.5.60
+        #        - 172.16.5.61
+        #        - 172.16.5.62
+        #        - 172.16.5.63
+        #        - 172.16.5.64
+        #        - 172.16.5.65
+        #        - 172.16.5.67
+        #        - 172.16.5.68
