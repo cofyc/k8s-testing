@@ -26,6 +26,7 @@ if $build; then
     make WHAT=test/e2e/e2e.test
 fi
 
+export KUBECONFIG=$(readlink -f ~/.kube/config)
 ./hack/ginkgo-e2e.sh \
     --minStartupPods=1 \
     "$@"
