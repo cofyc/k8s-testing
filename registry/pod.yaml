@@ -1,0 +1,15 @@
+#
+# Use to create a temporary registry in Kubernetes cluster for testing
+#
+kind: Pod
+apiVersion: v1
+metadata:
+  name: registry
+spec:
+  containers:
+  - name: registry
+    image: registry:2 
+    ports:
+    - containerPort: 5000
+  restartPolicy: Always
+  hostNetwork: true

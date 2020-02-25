@@ -1,30 +1,30 @@
 kind: Pod
 apiVersion: v1
 metadata:
-  name: test-pod-1
+  name: test-pod-2
 spec:
   #priorityClassName: system-cluster-critical
   #priorityClassName: test
   containers:
-  - name: test-pod-1
-    image: alpine
+  - name: main
+    image: httpd:2.4.39-alpine
     command:
     - "/bin/sh"
     args:
     - "-c"
     - "trap exit EXIT; while true; do sleep 1; done"
   restartPolicy: Always
-  nodeSelector:
-    kubernetes.io/hostname: 127.0.0.1
-    volumeMounts:
-    - name: pvc
-      mountPath: "/mnt"
-      readOnly: false
-  volumes:
-  - name: pvc
-    persistentVolumeClaim:
-      claimName: account-apiserver-etcd-data
-      readOnly: false
+  # nodeSelector:
+    # kubernetes.io/hostname: 127.0.0.1
+    # volumeMounts:
+    # - name: pvc
+      # mountPath: "/mnt"
+      # readOnly: false
+  # volumes:
+  # - name: pvc
+    # persistentVolumeClaim:
+      # claimName: account-apiserver-etcd-data
+      # readOnly: false
   tolerations:
   - effect: NoSchedule
     key: node-role.kubernetes.io/master

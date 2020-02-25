@@ -11,4 +11,5 @@ cd $ROOT
 
 echo '>>> Warning: please run `make quick-release` first in kubernetes source directory, or pass `--build` to kubetest'
 $ROOT/hack/e2e.sh -- \
+    --build \
     --up

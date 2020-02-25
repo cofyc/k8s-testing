@@ -4,8 +4,9 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-ROOT=$(unset CDPATH && cd $(dirname "${BASH_SOURCE[0]}")/.. && pwd)
-cd $ROOT
+KUBE_ROOT=$GOPATH/src/k8s.io/kubernetes
+ROOT=$(unset CDPATH && cd $(dirname "${BASH_SOURCE[0]}")/../.. && pwd)
+cd $KUBE_ROOT
 
 build=false
 while getopts "b" opt; do
@@ -22,14 +23,6 @@ fi
 
 source "$ROOT/hack/env.sh"
 
-if $build; then
-    (
-        KUBE_ROOT=$GOPATH/src/k8s.io/kubernetes
-        cd $KUBE_ROOT
-        make WHAT=test/e2e/e2e.test
-    )
-fi
-
 # gce
 kubetest_args+=(
     --provider "gce"
@@ -44,6 +37,5 @@ kubetest_args+=(
     $@
 )
 
-cd $GOPATH/src/k8s.io/kubernetes
-go run $GOPATH/src/k8s.io/kubernetes/hack/e2e.go -old 240000h -- \
+go run hack/e2e.go -old 240000h -- \
     "${kubetest_args[@]}"

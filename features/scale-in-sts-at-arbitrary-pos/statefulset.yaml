@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: web
+  name: nginx
   labels:
     app: nginx
 spec:
@@ -16,12 +16,14 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: web
+  # annotations:
+    # delete-slots: '[0, 1]'
 spec:
   selector:
     matchLabels:
       app: nginx # has to match .spec.template.metadata.labels
   serviceName: "nginx"
-  replicas: 1 # by default is 1
+  replicas: 3
   template:
     metadata:
       labels:
@@ -34,15 +36,15 @@ spec:
         ports:
         - containerPort: 80
           name: web
-        volumeMounts:
-        - name: www
-          mountPath: /usr/share/nginx/html
-  volumeClaimTemplates:
-  - metadata:
-      name: www
-    spec:
-      accessModes: [ "ReadWriteOnce" ]
-      storageClassName: "local"
-      resources:
-        requests:
-          storage: 1Gi
+        # volumeMounts:
+        # - name: www
+          # mountPath: /usr/share/nginx/html
+  # volumeClaimTemplates:
+  # - metadata:
+      # name: www
+    # spec:
+      # accessModes: [ "ReadWriteOnce" ]
+      # storageClassName: "local"
+      # resources:
+        # requests:
+          # storage: 1Gi

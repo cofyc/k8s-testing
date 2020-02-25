@@ -1,0 +1,73 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: registry-proxy-k8s-gcr-io
+  namespace: fuyecheng 
+data:
+  config.yml: |-
+    version: 0.1
+    log:
+      fields:
+        service: registry
+    storage:
+      cache:
+        blobdescriptor: inmemory
+      filesystem:
+        rootdirectory: /var/lib/registry
+    http:
+      addr: :5000
+      headers:
+        X-Content-Type-Options: [nosniff]
+    health:
+      storagedriver:
+        enabled: true
+        interval: 10s
+        threshold: 3
+    proxy:
+      remoteurl: https://gcr.io/v2/google_containers
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: fuyecheng
+  name: registry-proxy-k8s-gcr-io
+  labels:
+    app: registry-proxy-k8s-gcr-io
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: registry-proxy-k8s-gcr-io
+  template:
+    metadata:
+      labels:
+        app: registry-proxy-k8s-gcr-io
+    spec:
+      containers:
+      - name: registry
+        image: registry:2
+        volumeMounts:
+        - name: config
+          mountPath: /etc/docker/registry
+          readOnly: true
+      volumes:
+      - name: config
+        configMap:
+          name: registry-proxy-k8s-gcr-io
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: registry-proxy-k8s-gcr-io
+  namespace: fuyecheng
+  labels:
+    app: registry-proxy-k8s-gcr-io
+spec:
+  type: ClusterIP
+  ports:
+  - name: http
+    port: 5000
+    protocol: TCP 
+    targetPort: 5000
+  selector:
+    app: registry-proxy-k8s-gcr-io
