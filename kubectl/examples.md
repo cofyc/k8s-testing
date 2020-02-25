@@ -108,9 +108,7 @@ kubectl get pv -ojsonpath='{range .items[*]}{.metadata.name} {.spec.rbd.image}{"
 for local pvs:
 
 ```
-kubectl get pv -ojsonpath='{range .items[*]}{.metadata.name} {.spec.rbd.image}
-{.spec.nodeAffinity.required.nodeSelectorTerms[0].matchExpressions[0].values[0]}
-{.status.phase}{"\n"}{end}' 
+kubectl get pv -ojsonpath='{range .items[*]}{.metadata.name} {.spec.storageClassName} {.spec.nodeAffinity.required.nodeSelectorTerms[0].matchExpressions[0].values[0]} {.status.phase} {.spec.local.path} {"\n"}{end}' 
 ```
 
 ### Specify api groups and versions
