@@ -27,4 +27,6 @@ spec:
       # readOnly: false
   tolerations:
   - effect: NoSchedule
-    key: node-role.kubernetes.io/master
+    key: dedicated
+    # node-role.kubernetes.io/master
+    value: tikv

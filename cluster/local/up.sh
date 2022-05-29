@@ -38,7 +38,7 @@ if $build; then
         source "${KUBE_ROOT}/build/common.sh"
         kube::build::verify_prereqs
         kube::build::build_image
-        kube::build::run_build_command make WHAT="cmd/hyperkube cmd/kubectl"
+        kube::build::run_build_command make WHAT="cmd/kube-controller-manager cmd/kubelet cmd/kube-apiserver cmd/kube-scheduler cmd/kubectl cmd/kube-proxy"
         kube::build::copy_output
 
         # build image if we are going to run kubelet in container

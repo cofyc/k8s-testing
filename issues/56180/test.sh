@@ -11,7 +11,8 @@ export KUBE_TIMEOUT="--timeout=3600s"
 # make test-integration WHAT=./test/integration/volumescheduling GOFLAGS="-v" 
 
 # https://prow.k8s.io/view/gcs/kubernetes-jenkins/pr-logs/pull/83726/pull-kubernetes-integration/1182936431899709440/
-export KUBE_TEST_ARGS="-run '(TestTaintBasedEvictions|TestSchedulerCreationFromConfigMap)'"
+# export KUBE_TEST_ARGS="-run '(TestTaintBasedEvictions)'"
 # export KUBE_TEST_ARGS="-run 'TestSchedulerCreationFromConfigMap'"
+export KUBE_TEST_ARGS="-run 'TestNominatedNodeCleanUp'"
 export GOFLAGS="-v" 
 make test-integration WHAT=./test/integration/scheduler

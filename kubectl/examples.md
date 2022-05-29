@@ -121,6 +121,14 @@ kubectl get deployments.v1.apps test-nginx
 See
 https://github.com/kubernetes/kubernetes/issues/58131#issuecomment-356823588.
 
+### get raw files from secrets
+
+```
+kubectl get secrets selfsigned-ca-cert  -ojsonpath="{.data['ca\.crt']}" | base64 -d > selfsigned.ca.crt
+kubectl get secrets selfsigned-ca-cert  -ojsonpath="{.data['tls\.crt']}" | base64 -d > selfsigned.tls.crt
+kubectl get secrets selfsigned-ca-cert  -ojsonpath="{.data['tls\.key']}" | base64 -d > selfsigned.tls.key
+```
+
 ## Notes
 
 If a object/array key has a '.', it should be escaped by '\'. For example:

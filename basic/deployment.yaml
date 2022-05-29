@@ -1,11 +1,11 @@
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
     app: deploy
   name: deploy
 spec:
-  replicas: 1
+  replicas: 10
   selector:
     matchLabels:
       app: deploy
@@ -23,5 +23,5 @@ spec:
         - "/bin/sh"
         args:
         - "-c"
-        - "trap exit EXIT; while true; do sleep 1; done"
+        - "trap exit EXIT; while true; do sleep 1;       done"
       restartPolicy: Always

@@ -1,0 +1,41 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: pod-0
+spec:
+  containers:
+  - name: test-pod
+    image: alpine:latest
+    command:
+    - "/bin/sh"
+    args:
+    - "-c"
+    - "trap 'exit' TERM; while true; do sleep 1; done"
+    volumeMounts:
+    - name: data
+      mountPath: "/mnt"
+  volumes:
+  - name: data
+    persistentVolumeClaim:
+      claimName: pvc-0
+---
+kind: Pod
+apiVersion: v1
+metadata:
+  name: pod-1
+spec:
+  containers:
+  - name: test-pod
+    image: alpine:latest
+    command:
+    - "/bin/sh"
+    args:
+    - "-c"
+    - "trap 'exit' TERM; while true; do sleep 1; done"
+    volumeMounts:
+    - name: data
+      mountPath: "/mnt"
+  volumes:
+  - name: data
+    persistentVolumeClaim:
+      claimName: pvc-0
